@@ -1,0 +1,21 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - develop
+      - release-candidate
+      - main
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  release:
+    name: Create Release
+    uses: LerianStudio/github-actions-shared-workflows/.github/workflows/release.yml@v1.26.1
+    with:
+      runner_type: "blacksmith-4vcpu-ubuntu-2404"
+    secrets: inherit

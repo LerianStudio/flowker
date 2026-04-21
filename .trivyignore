@@ -1,0 +1,7 @@
+# CVE-2026-34040: Docker AuthZ plugin bypass — affects docker daemon, not Go client library
+# The github.com/docker/docker Go module is used as a client library via testcontainers-go.
+# Fix version v29.3.1 is not available as a Go module (max is v28.5.2+incompatible).
+CVE-2026-34040
+
+# CVE-2026-33997: Docker plugin privilege validation — same rationale as above
+CVE-2026-33997

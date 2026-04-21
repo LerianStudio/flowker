@@ -1,0 +1,2543 @@
+basePath: /
+definitions:
+  api.ErrorResponse:
+    properties:
+      code:
+        example: FLK-0001
+        type: string
+      message:
+        example: Invalid input provided
+        type: string
+      title:
+        example: Bad Request
+        type: string
+    required:
+    - code
+    - message
+    - title
+    type: object
+  commons.Response:
+    properties:
+      code:
+        type: string
+      entityType:
+        type: string
+      err: {}
+      message:
+        type: string
+      title:
+        type: string
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.AuditActorOutput:
+    properties:
+      id:
+        type: string
+      ipAddress:
+        type: string
+      type:
+        type: string
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.AuditEntryListOutput:
+    properties:
+      hasMore:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.AuditEntryOutput'
+        type: array
+      nextCursor:
+        type: string
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.AuditEntryOutput:
+    description: Immutable audit event record with hash chain integrity.
+    properties:
+      action:
+        type: string
+      actor:
+        $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.AuditActorOutput'
+      context:
+        additionalProperties: {}
+        type: object
+      eventId:
+        format: uuid
+        type: string
+      eventType:
+        type: string
+      hash:
+        type: string
+      metadata:
+        additionalProperties: {}
+        type: object
+      previousHash:
+        type: string
+      resourceId:
+        type: string
+      resourceType:
+        type: string
+      result:
+        type: string
+      timestamp:
+        type: string
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.CloneWorkflowInput:
+    properties:
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+    required:
+    - name
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.CreateProviderConfigurationInput:
+    properties:
+      config:
+        additionalProperties: {}
+        type: object
+      description:
+        maxLength: 500
+        type: string
+      metadata:
+        additionalProperties: {}
+        type: object
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      providerId:
+        type: string
+    required:
+    - config
+    - name
+    - providerId
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.CreateWorkflowFromTemplateInput:
+    properties:
+      params:
+        additionalProperties: {}
+        type: object
+      templateId:
+        type: string
+    required:
+    - params
+    - templateId
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.CreateWorkflowInput:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      edges:
+        items:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.WorkflowEdgeInput'
+        maxItems: 200
+        type: array
+      metadata:
+        additionalProperties: {}
+        type: object
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      nodes:
+        items:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.WorkflowNodeInput'
+        maxItems: 100
+        type: array
+    required:
+    - name
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.ExecuteWorkflowInput:
+    properties:
+      inputData:
+        additionalProperties: {}
+        type: object
+    required:
+    - inputData
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.ExecutionCreateOutput:
+    properties:
+      executionId:
+        format: uuid
+        type: string
+      startedAt:
+        type: string
+      status:
+        type: string
+      workflowId:
+        format: uuid
+        type: string
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.ExecutionListOutput:
+    properties:
+      hasMore:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ExecutionStatusOutput'
+        type: array
+      nextCursor:
+        type: string
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.ExecutionResultsOutput:
+    properties:
+      completedAt:
+        type: string
+      executionId:
+        format: uuid
+        type: string
+      finalOutput:
+        additionalProperties: {}
+        type: object
+      startedAt:
+        type: string
+      status:
+        type: string
+      stepResults:
+        items:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.StepResultOutput'
+        type: array
+      workflowId:
+        format: uuid
+        type: string
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.ExecutionStatusOutput:
+    properties:
+      completedAt:
+        type: string
+      currentStepNumber:
+        type: integer
+      errorMessage:
+        type: string
+      executionId:
+        format: uuid
+        type: string
+      startedAt:
+        type: string
+      status:
+        type: string
+      totalSteps:
+        type: integer
+      workflowId:
+        format: uuid
+        type: string
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.ExecutionSummaryOutput:
+    properties:
+      completed:
+        example: 120
+        type: integer
+      failed:
+        example: 25
+        type: integer
+      pending:
+        example: 3
+        type: integer
+      running:
+        example: 2
+        type: integer
+      total:
+        example: 150
+        type: integer
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.ExecutorAuthenticationInput:
+    properties:
+      config:
+        additionalProperties: {}
+        type: object
+      type:
+        enum:
+        - none
+        - api_key
+        - bearer
+        - basic
+        - oidc_client_credentials
+        - oidc_user
+        type: string
+    required:
+    - type
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.ExecutorAuthenticationOutput:
+    properties:
+      config:
+        additionalProperties: {}
+        type: object
+      type:
+        type: string
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.ExecutorConfigurationListOutput:
+    properties:
+      hasMore:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ExecutorConfigurationOutput'
+        type: array
+      nextCursor:
+        type: string
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.ExecutorConfigurationOutput:
+    properties:
+      authentication:
+        $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ExecutorAuthenticationOutput'
+      baseUrl:
+        type: string
+      createdAt:
+        type: string
+      description:
+        type: string
+      endpoints:
+        items:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ExecutorEndpointOutput'
+        type: array
+      id:
+        format: uuid
+        type: string
+      lastTestedAt:
+        type: string
+      metadata:
+        additionalProperties: {}
+        type: object
+      name:
+        type: string
+      status:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.ExecutorEndpointInput:
+    properties:
+      method:
+        enum:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - HEAD
+        - OPTIONS
+        type: string
+      name:
+        maxLength: 50
+        minLength: 1
+        type: string
+      path:
+        maxLength: 200
+        minLength: 1
+        type: string
+      timeout:
+        maximum: 300
+        minimum: 1
+        type: integer
+    required:
+    - method
+    - name
+    - path
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.ExecutorEndpointOutput:
+    properties:
+      method:
+        type: string
+      name:
+        type: string
+      path:
+        type: string
+      timeout:
+        type: integer
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.HashChainVerificationOutput:
+    description: Result of hash chain integrity verification.
+    properties:
+      firstInvalidId:
+        type: integer
+      isValid:
+        type: boolean
+      message:
+        type: string
+      totalChecked:
+        type: integer
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.PositionInput:
+    properties:
+      x:
+        type: integer
+      "y":
+        type: integer
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.PositionOutput:
+    properties:
+      x:
+        type: integer
+      "y":
+        type: integer
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.ProviderConfigTestResultOutput:
+    properties:
+      completedAt:
+        type: string
+      durationMs:
+        type: integer
+      overallStatus:
+        type: string
+      providerConfigId:
+        format: uuid
+        type: string
+      providerId:
+        type: string
+      stages:
+        items:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.StageTestResultOutput'
+        type: array
+      startedAt:
+        type: string
+      summary:
+        type: string
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.ProviderConfigurationCreateOutput:
+    properties:
+      createdAt:
+        type: string
+      id:
+        format: uuid
+        type: string
+      name:
+        type: string
+      status:
+        type: string
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.ProviderConfigurationListOutput:
+    properties:
+      hasMore:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ProviderConfigurationOutput'
+        type: array
+      nextCursor:
+        type: string
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.ProviderConfigurationOutput:
+    properties:
+      config:
+        additionalProperties: {}
+        type: object
+      createdAt:
+        type: string
+      description:
+        type: string
+      id:
+        format: uuid
+        type: string
+      metadata:
+        additionalProperties: {}
+        type: object
+      name:
+        type: string
+      providerId:
+        type: string
+      status:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.StageTestResultOutput:
+    properties:
+      details:
+        additionalProperties: {}
+        type: object
+      durationMs:
+        type: integer
+      error:
+        type: string
+      message:
+        type: string
+      name:
+        type: string
+      status:
+        type: string
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.StatusCountOutput:
+    properties:
+      count:
+        example: 8
+        type: integer
+      status:
+        example: active
+        type: string
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.StepResultOutput:
+    properties:
+      durationMs:
+        type: integer
+      errorMessage:
+        type: string
+      executedAt:
+        type: string
+      nodeId:
+        type: string
+      output:
+        additionalProperties: {}
+        type: object
+      status:
+        type: string
+      stepName:
+        type: string
+      stepNumber:
+        type: integer
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.UpdateExecutorConfigurationInput:
+    properties:
+      authentication:
+        $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ExecutorAuthenticationInput'
+      baseUrl:
+        maxLength: 500
+        type: string
+      description:
+        maxLength: 500
+        type: string
+      endpoints:
+        items:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ExecutorEndpointInput'
+        minItems: 1
+        type: array
+      metadata:
+        additionalProperties: {}
+        type: object
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+    required:
+    - authentication
+    - baseUrl
+    - endpoints
+    - name
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.UpdateProviderConfigurationInput:
+    properties:
+      config:
+        additionalProperties: {}
+        type: object
+      description:
+        maxLength: 500
+        type: string
+      metadata:
+        additionalProperties: {}
+        type: object
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.UpdateWorkflowInput:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      edges:
+        items:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.WorkflowEdgeInput'
+        maxItems: 200
+        type: array
+      metadata:
+        additionalProperties: {}
+        type: object
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      nodes:
+        items:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.WorkflowNodeInput'
+        maxItems: 100
+        type: array
+    required:
+    - name
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.WorkflowCreateOutput:
+    properties:
+      createdAt:
+        type: string
+      status:
+        type: string
+      version:
+        type: string
+      workflowId:
+        format: uuid
+        type: string
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.WorkflowEdgeInput:
+    properties:
+      condition:
+        maxLength: 500
+        type: string
+      id:
+        maxLength: 50
+        minLength: 1
+        type: string
+      label:
+        maxLength: 50
+        type: string
+      source:
+        maxLength: 50
+        minLength: 1
+        type: string
+      sourceHandle:
+        maxLength: 50
+        type: string
+      target:
+        maxLength: 50
+        minLength: 1
+        type: string
+    required:
+    - id
+    - source
+    - target
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.WorkflowEdgeOutput:
+    properties:
+      condition:
+        type: string
+      id:
+        type: string
+      label:
+        type: string
+      source:
+        type: string
+      sourceHandle:
+        type: string
+      target:
+        type: string
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.WorkflowListOutput:
+    properties:
+      hasMore:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.WorkflowOutput'
+        type: array
+      nextCursor:
+        type: string
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.WorkflowNodeInput:
+    properties:
+      data:
+        additionalProperties: {}
+        type: object
+      id:
+        maxLength: 50
+        minLength: 1
+        type: string
+      name:
+        maxLength: 50
+        type: string
+      position:
+        $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.PositionInput'
+      type:
+        enum:
+        - trigger
+        - executor
+        - conditional
+        - action
+        type: string
+    required:
+    - id
+    - position
+    - type
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.WorkflowNodeOutput:
+    properties:
+      data:
+        additionalProperties: {}
+        type: object
+      id:
+        type: string
+      name:
+        type: string
+      position:
+        $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.PositionOutput'
+      type:
+        type: string
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.WorkflowOutput:
+    properties:
+      createdAt:
+        type: string
+      description:
+        type: string
+      edges:
+        items:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.WorkflowEdgeOutput'
+        type: array
+      id:
+        format: uuid
+        type: string
+      metadata:
+        additionalProperties: {}
+        type: object
+      name:
+        type: string
+      nodes:
+        items:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.WorkflowNodeOutput'
+        type: array
+      status:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  github_com_LerianStudio_flowker_pkg_model.WorkflowSummaryOutput:
+    properties:
+      active:
+        example: 8
+        type: integer
+      byStatus:
+        items:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.StatusCountOutput'
+        type: array
+      total:
+        example: 15
+        type: integer
+    type: object
+  internal_adapters_http_in_catalog.ExecutorDetail:
+    properties:
+      category:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      providerId:
+        type: string
+      schema:
+        type: string
+      version:
+        type: string
+    type: object
+  internal_adapters_http_in_catalog.ExecutorSummary:
+    properties:
+      category:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      providerId:
+        type: string
+      version:
+        type: string
+    type: object
+  internal_adapters_http_in_catalog.ProviderDetail:
+    properties:
+      configSchema:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      version:
+        type: string
+    type: object
+  internal_adapters_http_in_catalog.ProviderSummary:
+    properties:
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      version:
+        type: string
+    type: object
+  internal_adapters_http_in_catalog.TemplateDetail:
+    properties:
+      category:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      paramSchema:
+        type: string
+      version:
+        type: string
+    type: object
+  internal_adapters_http_in_catalog.TemplateSummary:
+    properties:
+      category:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      version:
+        type: string
+    type: object
+  internal_adapters_http_in_catalog.TemplateValidationRequest:
+    properties:
+      params:
+        additionalProperties: {}
+        type: object
+    type: object
+  internal_adapters_http_in_catalog.TriggerDetail:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      schema:
+        type: string
+      version:
+        type: string
+    type: object
+  internal_adapters_http_in_catalog.TriggerSummary:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      version:
+        type: string
+    type: object
+  internal_adapters_http_in_catalog.ValidationRequest:
+    properties:
+      config:
+        additionalProperties: {}
+        type: object
+    type: object
+  internal_adapters_http_in_catalog.ValidationResponse:
+    properties:
+      error:
+        type: string
+      valid:
+        type: boolean
+    type: object
+  internal_adapters_http_in_health.CheckResult:
+    properties:
+      message:
+        type: string
+      status:
+        type: string
+    type: object
+  internal_adapters_http_in_health.HealthResponse:
+    properties:
+      checks:
+        additionalProperties:
+          $ref: '#/definitions/internal_adapters_http_in_health.CheckResult'
+        type: object
+      status:
+        type: string
+      timestamp:
+        type: string
+      uptime:
+        type: string
+      version:
+        type: string
+    type: object
+host: localhost:4021
+info:
+  contact: {}
+  description: Workflow orchestration platform for financial validation
+  termsOfService: http://swagger.io/terms/
+  title: Flowker API
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      description: Returns detailed health information including uptime and version
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_adapters_http_in_health.HealthResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/internal_adapters_http_in_health.HealthResponse'
+      summary: Combined health check
+      tags:
+      - Health
+  /health/live:
+    get:
+      description: Returns 200 OK if the application process is running
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_adapters_http_in_health.HealthResponse'
+      summary: Kubernetes liveness probe
+      tags:
+      - Health
+  /health/ready:
+    get:
+      description: Returns 200 OK if the application is ready to serve traffic
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_adapters_http_in_health.HealthResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/internal_adapters_http_in_health.HealthResponse'
+      summary: Kubernetes readiness probe
+      tags:
+      - Health
+  /v1/audit-events:
+    get:
+      description: Retrieves a paginated list of audit log entries with optional filtering
+      parameters:
+      - description: Filter by event type
+        in: query
+        name: eventType
+        type: string
+      - description: Filter by action
+        in: query
+        name: action
+        type: string
+      - description: Filter by result
+        enum:
+        - SUCCESS
+        - FAILED
+        in: query
+        name: result
+        type: string
+      - description: Filter by resource type
+        enum:
+        - workflow
+        - execution
+        - provider_config
+        in: query
+        name: resourceType
+        type: string
+      - description: Filter by resource ID
+        format: uuid
+        in: query
+        name: resourceId
+        type: string
+      - description: Start date filter (RFC3339)
+        format: date-time
+        in: query
+        name: dateFrom
+        type: string
+      - description: End date filter (RFC3339)
+        format: date-time
+        in: query
+        name: dateTo
+        type: string
+      - default: 20
+        description: Number of items per page
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      - description: Pagination cursor
+        in: query
+        name: cursor
+        type: string
+      - default: DESC
+        description: Sort order
+        enum:
+        - ASC
+        - DESC
+        in: query
+        name: sortOrder
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.AuditEntryListOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Search audit logs
+      tags:
+      - Audit
+  /v1/audit-events/{id}:
+    get:
+      description: Retrieves a single audit log entry by its event ID
+      parameters:
+      - description: Audit event ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.AuditEntryOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Get audit entry by ID
+      tags:
+      - Audit
+  /v1/audit-events/{id}/verify:
+    get:
+      description: Verifies the hash chain integrity up to the specified audit entry
+      parameters:
+      - description: Audit event ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.HashChainVerificationOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Verify audit hash chain
+      tags:
+      - Audit
+  /v1/catalog/executors:
+    get:
+      description: Returns all built-in executors registered in the catalog
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/internal_adapters_http_in_catalog.ExecutorSummary'
+            type: array
+      summary: List executors
+      tags:
+      - Catalog
+  /v1/catalog/executors/{id}:
+    get:
+      description: Returns executor metadata and its JSON Schema
+      parameters:
+      - description: Executor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_adapters_http_in_catalog.ExecutorDetail'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/commons.Response'
+      summary: Get executor
+      tags:
+      - Catalog
+  /v1/catalog/executors/{id}/validate:
+    post:
+      consumes:
+      - application/json
+      description: Validates an executor configuration against its JSON Schema
+      parameters:
+      - description: Executor ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Configuration to validate
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_adapters_http_in_catalog.ValidationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_adapters_http_in_catalog.ValidationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_adapters_http_in_catalog.ValidationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/commons.Response'
+      summary: Validate executor config
+      tags:
+      - Catalog
+  /v1/catalog/providers:
+    get:
+      description: Returns all registered providers from the static catalog
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/internal_adapters_http_in_catalog.ProviderSummary'
+            type: array
+      summary: List providers
+      tags:
+      - Catalog
+  /v1/catalog/providers/{id}:
+    get:
+      description: Returns provider metadata and its JSON Schema for configuration
+      parameters:
+      - description: Provider ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_adapters_http_in_catalog.ProviderDetail'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/commons.Response'
+      summary: Get provider
+      tags:
+      - Catalog
+  /v1/catalog/providers/{id}/executors:
+    get:
+      description: Returns all executors belonging to a specific provider
+      parameters:
+      - description: Provider ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/internal_adapters_http_in_catalog.ExecutorSummary'
+            type: array
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/commons.Response'
+      summary: List provider executors
+      tags:
+      - Catalog
+  /v1/catalog/templates:
+    get:
+      description: Returns all workflow templates registered in the catalog
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/internal_adapters_http_in_catalog.TemplateSummary'
+            type: array
+      summary: List templates
+      tags:
+      - Catalog
+  /v1/catalog/templates/{id}:
+    get:
+      description: Returns template metadata and its JSON Schema for parameters
+      parameters:
+      - description: Template ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_adapters_http_in_catalog.TemplateDetail'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/commons.Response'
+      summary: Get template
+      tags:
+      - Catalog
+  /v1/catalog/templates/{id}/validate:
+    post:
+      consumes:
+      - application/json
+      description: Validates template parameters against its JSON Schema
+      parameters:
+      - description: Template ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Parameters to validate
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_adapters_http_in_catalog.TemplateValidationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_adapters_http_in_catalog.ValidationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_adapters_http_in_catalog.ValidationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/commons.Response'
+      summary: Validate template params
+      tags:
+      - Catalog
+  /v1/catalog/triggers:
+    get:
+      description: Returns all built-in triggers registered in the catalog
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/internal_adapters_http_in_catalog.TriggerSummary'
+            type: array
+      summary: List triggers
+      tags:
+      - Catalog
+  /v1/catalog/triggers/{id}:
+    get:
+      description: Returns trigger metadata and its JSON Schema
+      parameters:
+      - description: Trigger ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_adapters_http_in_catalog.TriggerDetail'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/commons.Response'
+      summary: Get trigger
+      tags:
+      - Catalog
+  /v1/dashboards/executions:
+    get:
+      description: Retrieves an aggregated summary of executions with optional time
+        range and status filters
+      parameters:
+      - description: Start time filter (RFC3339)
+        format: date-time
+        in: query
+        name: startTime
+        type: string
+      - description: End time filter (RFC3339)
+        format: date-time
+        in: query
+        name: endTime
+        type: string
+      - description: Status filter
+        enum:
+        - pending
+        - running
+        - completed
+        - failed
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ExecutionSummaryOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Get execution summary
+      tags:
+      - Dashboard
+  /v1/dashboards/workflows/summary:
+    get:
+      description: Retrieves an aggregated summary of all workflows grouped by status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.WorkflowSummaryOutput'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Get workflow summary
+      tags:
+      - Dashboard
+  /v1/executions:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves a paginated list of workflow executions with optional
+        filters
+      parameters:
+      - description: Filter by workflow ID
+        format: uuid
+        in: query
+        name: workflowId
+        type: string
+      - description: Filter by status
+        enum:
+        - pending
+        - running
+        - completed
+        - failed
+        in: query
+        name: status
+        type: string
+      - default: 10
+        description: Page size (1-100)
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      - description: Pagination cursor
+        in: query
+        name: cursor
+        type: string
+      - default: startedAt
+        description: Sort field
+        enum:
+        - startedAt
+        - completedAt
+        in: query
+        name: sortBy
+        type: string
+      - default: DESC
+        description: Sort direction
+        enum:
+        - ASC
+        - DESC
+        in: query
+        name: sortOrder
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ExecutionListOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: List executions
+      tags:
+      - Executions
+  /v1/executions/{id}:
+    get:
+      description: Retrieves the current status of a workflow execution
+      parameters:
+      - description: Execution ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ExecutionStatusOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Get execution status
+      tags:
+      - Executions
+  /v1/executions/{id}/results:
+    get:
+      description: Retrieves the results of a completed workflow execution
+      parameters:
+      - description: Execution ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ExecutionResultsOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Execution still in progress
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Get execution results
+      tags:
+      - Executions
+  /v1/executors:
+    get:
+      description: Retrieves a paginated list of executor configurations with optional
+        filtering
+      parameters:
+      - description: Filter by status
+        enum:
+        - unconfigured
+        - configured
+        - tested
+        - active
+        - disabled
+        in: query
+        name: status
+        type: string
+      - default: 10
+        description: Number of items per page
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      - description: Pagination cursor
+        in: query
+        name: cursor
+        type: string
+      - default: createdAt
+        description: Sort field
+        enum:
+        - createdAt
+        - updatedAt
+        - name
+        in: query
+        name: sortBy
+        type: string
+      - default: DESC
+        description: Sort order
+        enum:
+        - ASC
+        - DESC
+        in: query
+        name: sortOrder
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ExecutorConfigurationListOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: List executor configurations
+      tags:
+      - Executors
+  /v1/executors/{id}:
+    delete:
+      description: Deletes an executor configuration (only unconfigured, configured,
+        or disabled executor configurations can be deleted)
+      parameters:
+      - description: Executor Configuration ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Delete an executor configuration
+      tags:
+      - Executors
+    get:
+      description: Retrieves an executor configuration by its ID
+      parameters:
+      - description: Executor Configuration ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ExecutorConfigurationOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Get executor configuration by ID
+      tags:
+      - Executors
+    patch:
+      consumes:
+      - application/json
+      description: Updates an existing executor configuration (only unconfigured or
+        configured executor configurations can be updated)
+      parameters:
+      - description: Executor Configuration ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated executor configuration
+        in: body
+        name: executorConfig
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.UpdateExecutorConfigurationInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ExecutorConfigurationOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Update an executor configuration
+      tags:
+      - Executors
+  /v1/provider-configurations:
+    get:
+      description: Retrieves a paginated list of provider configurations with optional
+        filtering
+      parameters:
+      - description: Filter by status
+        enum:
+        - active
+        - disabled
+        in: query
+        name: status
+        type: string
+      - description: Filter by provider ID
+        in: query
+        name: providerId
+        type: string
+      - default: 10
+        description: Number of items per page
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      - description: Pagination cursor
+        in: query
+        name: cursor
+        type: string
+      - default: createdAt
+        description: Sort field
+        enum:
+        - createdAt
+        - updatedAt
+        - name
+        in: query
+        name: sortBy
+        type: string
+      - default: DESC
+        description: Sort order
+        enum:
+        - ASC
+        - DESC
+        in: query
+        name: sortOrder
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ProviderConfigurationListOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: List provider configurations
+      tags:
+      - Provider Configurations
+    post:
+      consumes:
+      - application/json
+      description: Creates a new provider configuration validated against the provider's
+        JSON Schema
+      parameters:
+      - description: Provider Configuration Input
+        in: body
+        name: providerConfig
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.CreateProviderConfigurationInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ProviderConfigurationCreateOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Create a provider configuration
+      tags:
+      - Provider Configurations
+  /v1/provider-configurations/{id}:
+    delete:
+      description: Deletes a provider configuration
+      parameters:
+      - description: Provider Configuration ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Delete a provider configuration
+      tags:
+      - Provider Configurations
+    get:
+      description: Retrieves a provider configuration by its ID
+      parameters:
+      - description: Provider Configuration ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ProviderConfigurationOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Get provider configuration by ID
+      tags:
+      - Provider Configurations
+    patch:
+      consumes:
+      - application/json
+      description: Updates an existing provider configuration. If config is changed,
+        re-validates against provider JSON Schema.
+      parameters:
+      - description: Provider Configuration ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated provider configuration
+        in: body
+        name: providerConfig
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.UpdateProviderConfigurationInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ProviderConfigurationOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Update a provider configuration
+      tags:
+      - Provider Configurations
+  /v1/provider-configurations/{id}/disable:
+    post:
+      description: Transitions a provider configuration from active to disabled status
+      parameters:
+      - description: Provider Configuration ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ProviderConfigurationOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Disable a provider configuration
+      tags:
+      - Provider Configurations
+  /v1/provider-configurations/{id}/enable:
+    post:
+      description: Transitions a provider configuration from disabled to active status
+      parameters:
+      - description: Provider Configuration ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ProviderConfigurationOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Enable a provider configuration
+      tags:
+      - Provider Configurations
+  /v1/provider-configurations/{id}/test:
+    post:
+      description: Tests connectivity, authentication, and end-to-end communication
+        with the provider
+      parameters:
+      - description: Provider Configuration ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ProviderConfigTestResultOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Test provider configuration connectivity
+      tags:
+      - Provider Configurations
+  /v1/webhooks/{path}:
+    post:
+      consumes:
+      - application/json
+      description: Receives a webhook callback and triggers the associated workflow
+        execution. Runtime also accepts GET/PUT/DELETE/PATCH and nested-segment paths
+        that Swagger 2.0 cannot express.
+      parameters:
+      - description: Webhook path registered by a workflow (Swagger 2.0 single segment;
+          runtime accepts nested paths)
+        in: path
+        name: path
+        required: true
+        type: string
+      - description: Optional idempotency key
+        in: header
+        name: Idempotency-Key
+        type: string
+      - description: Infrastructure API key enforced by AuthGuard when API-key auth
+          is enabled
+        in: header
+        name: X-API-Key
+        type: string
+      - description: Per-webhook verification token (validated by the handler after
+          AuthGuard)
+        in: header
+        name: X-Webhook-Token
+        type: string
+      - description: Webhook payload
+        in: body
+        name: body
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Workflow execution already terminal (sync response)
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ExecutionCreateOutput'
+        "201":
+          description: Workflow execution created
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ExecutionCreateOutput'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized (AuthGuard API-key failure or invalid/missing
+            X-Webhook-Token)
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: No webhook registered for this path/method, or workflow not
+            found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "409":
+          description: Duplicate idempotency key
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "413":
+          description: Webhook payload exceeds 1MB limit
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Workflow is not active
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Trigger a webhook
+      tags:
+      - Webhooks
+  /v1/workflows:
+    get:
+      description: Retrieves a paginated list of workflows with optional filtering
+      parameters:
+      - description: Filter by status
+        enum:
+        - draft
+        - active
+        - inactive
+        in: query
+        name: status
+        type: string
+      - default: 10
+        description: Number of items per page
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      - description: Pagination cursor
+        in: query
+        name: cursor
+        type: string
+      - default: createdAt
+        description: Sort field
+        enum:
+        - createdAt
+        - updatedAt
+        - name
+        in: query
+        name: sortBy
+        type: string
+      - default: DESC
+        description: Sort order
+        enum:
+        - ASC
+        - DESC
+        in: query
+        name: sortOrder
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.WorkflowListOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: List workflows
+      tags:
+      - Workflows
+    post:
+      consumes:
+      - application/json
+      description: Creates a new workflow definition in draft status
+      parameters:
+      - description: Workflow definition
+        in: body
+        name: workflow
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.CreateWorkflowInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.WorkflowCreateOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Create a new workflow
+      tags:
+      - Workflows
+  /v1/workflows/{id}:
+    delete:
+      description: Deletes a workflow definition (only draft and inactive workflows
+        can be deleted)
+      parameters:
+      - description: Workflow ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Delete a workflow
+      tags:
+      - Workflows
+    get:
+      description: Retrieves a workflow definition by its ID
+      parameters:
+      - description: Workflow ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.WorkflowOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Get workflow by ID
+      tags:
+      - Workflows
+    put:
+      consumes:
+      - application/json
+      description: Updates an existing workflow definition (only draft workflows can
+        be updated)
+      parameters:
+      - description: Workflow ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated workflow definition
+        in: body
+        name: workflow
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.UpdateWorkflowInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.WorkflowOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Update a workflow
+      tags:
+      - Workflows
+  /v1/workflows/{id}/activate:
+    post:
+      description: Transitions a workflow from draft to active status
+      parameters:
+      - description: Workflow ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.WorkflowOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Activate a workflow
+      tags:
+      - Workflows
+  /v1/workflows/{id}/clone:
+    post:
+      consumes:
+      - application/json
+      description: Creates a copy of an existing workflow with a new name
+      parameters:
+      - description: Source workflow ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Clone parameters
+        in: body
+        name: clone
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.CloneWorkflowInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.WorkflowCreateOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Clone a workflow
+      tags:
+      - Workflows
+  /v1/workflows/{id}/deactivate:
+    post:
+      description: Transitions a workflow from active to inactive status
+      parameters:
+      - description: Workflow ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.WorkflowOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Deactivate a workflow
+      tags:
+      - Workflows
+  /v1/workflows/{id}/draft:
+    post:
+      description: Transitions a workflow from inactive to draft status for editing
+      parameters:
+      - description: Workflow ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.WorkflowOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Move workflow to draft
+      tags:
+      - Workflows
+  /v1/workflows/{workflowId}/executions:
+    post:
+      consumes:
+      - application/json
+      description: Starts a new workflow execution. Returns immediately with pending
+        status.
+      parameters:
+      - description: Workflow ID
+        format: uuid
+        in: path
+        name: workflowId
+        required: true
+        type: string
+      - description: Idempotency key
+        in: header
+        name: Idempotency-Key
+        required: true
+        type: string
+      - description: Execution input
+        in: body
+        name: execution
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ExecuteWorkflowInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Idempotent request
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ExecutionCreateOutput'
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.ExecutionCreateOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "413":
+          description: Payload too large (max 1 MB)
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Execute a workflow
+      tags:
+      - Executions
+  /v1/workflows/from-template:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new workflow from a registered template with provided
+        parameters
+      parameters:
+      - description: Template ID and parameters
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.CreateWorkflowFromTemplateInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_LerianStudio_flowker_pkg_model.WorkflowCreateOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Create workflow from template
+      tags:
+      - Workflows
+swagger: "2.0"

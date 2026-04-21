@@ -1,0 +1,132 @@
+x-flowker-mongodb-common:
+  &flowker-mongodb-common
+  build:
+    context: ./mongodb
+    dockerfile: Dockerfile
+  restart: always
+  environment:
+    MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+    MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    MONGO_REPLICA_SET: ${MONGO_REPLICA_SET:-rs0}
+  command: >
+    bash -c "mongod --replSet $${MONGO_REPLICA_SET:-rs0} --bind_ip_all --keyFile /etc/mongodb/keyfile"
+  healthcheck:
+    test: ["CMD-SHELL", "mongosh \"mongodb://$$MONGO_INITDB_ROOT_USERNAME:$$MONGO_INITDB_ROOT_PASSWORD@localhost:27017/?authSource=admin\" --quiet --eval \"db.adminCommand('ping')\""]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+    start_period: 30s
+  networks:
+    - flowker-network
+
+services:
+  flowker:
+    container_name: flowker
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - ${SERVER_PORT}:${SERVER_PORT}
+    healthcheck:
+      test: ["CMD", "/app", "--health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      flowker-mongodb-primary:
+        condition: service_healthy
+      flowker-audit-postgres:
+        condition: service_healthy
+    networks:
+      - flowker-network
+
+  # MongoDB Replica Set (Primary + 2 Secondaries)
+  flowker-mongodb-primary:
+    <<: *flowker-mongodb-common
+    container_name: flowker-mongodb-primary
+    ports:
+      - ${MONGO_PORT}:27017
+    volumes:
+      - mongodb-primary-data:/data/db
+
+  flowker-mongodb-secondary1:
+    <<: *flowker-mongodb-common
+    container_name: flowker-mongodb-secondary1
+    ports:
+      - ${MONGO_SECONDARY1_PORT}:27017
+    volumes:
+      - mongodb-secondary1-data:/data/db
+    depends_on:
+      flowker-mongodb-primary:
+        condition: service_healthy
+
+  flowker-mongodb-secondary2:
+    <<: *flowker-mongodb-common
+    container_name: flowker-mongodb-secondary2
+    ports:
+      - ${MONGO_SECONDARY2_PORT}:27017
+    volumes:
+      - mongodb-secondary2-data:/data/db
+    depends_on:
+      flowker-mongodb-primary:
+        condition: service_healthy
+
+  flowker-mongodb-init:
+    image: mongo:7.0
+    container_name: flowker-mongodb-init
+    env_file:
+      - .env
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_APP_USER: ${MONGO_APP_USER}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD}
+      MONGO_DB_NAME: ${MONGO_DB_NAME}
+    volumes:
+      - ./mongodb/init-replica.sh:/scripts/init-replica.sh:ro
+    command: ["bash", "/scripts/init-replica.sh"]
+    depends_on:
+      flowker-mongodb-primary:
+        condition: service_healthy
+      flowker-mongodb-secondary1:
+        condition: service_healthy
+      flowker-mongodb-secondary2:
+        condition: service_healthy
+    networks:
+      - flowker-network
+    restart: "no"
+
+  flowker-audit-postgres:
+    image: postgres:16-alpine
+    container_name: flowker-audit-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${AUDIT_DB_USER}
+      POSTGRES_PASSWORD: ${AUDIT_DB_PASSWORD}
+      POSTGRES_DB: ${AUDIT_DB_NAME}
+    ports:
+      - "${AUDIT_DB_PORT}:5432"
+    volumes:
+      - audit-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AUDIT_DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - flowker-network
+
+volumes:
+  mongodb-primary-data:
+  mongodb-secondary1-data:
+  mongodb-secondary2-data:
+  audit-postgres-data:
+
+networks:
+  flowker-network:
+    driver: bridge

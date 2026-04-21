@@ -1,0 +1,38 @@
+# Git
+.git
+.gitignore
+
+# Build artifacts
+bin/
+dist/
+artifacts/
+
+# Dependencies
+vendor/
+node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Environment
+.env
+.env.local
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Tests
+coverage.html
+*.test
+*.out
+
+# Temporary files
+tmp/
+*.tmp
+
+# MongoDB keyfile (generated per environment)
+mongodb/keyfile

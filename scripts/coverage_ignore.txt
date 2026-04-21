@@ -1,0 +1,5 @@
+/cmd/
+/tests/
+_mock
+_mock_test
+/proto/
