@@ -1,7 +1,5 @@
 # CLAUDE.md
 
-> **Note**: AGENTS.md is a symlink to this file. Edit CLAUDE.md only; changes propagate automatically.
-
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview

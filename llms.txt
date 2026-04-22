@@ -1,0 +1,63 @@
+# Lerian Flowker
+
+> Workflow orchestration platform for financial validation. Go single-service with Fiber v2 HTTP API, MongoDB (replica set) for domain data, and PostgreSQL for audit trail. Validates transactions through external providers (KYC, AML, fraud detection) before writing to core banking ledgers. Dual authentication: OIDC/JWT (Access Manager) for management routes, API key for webhook routes. Hexagonal architecture with CQRS. Elastic License 2.0.
+
+Flowker orchestrates validation workflows defined as directed graphs of executor nodes (HTTP, S3, Midaz, Tracer, custom). Workflows move through a lifecycle (Draft -> Active -> Inactive). Executions traverse the graph, calling external providers with circuit breaker resilience, data transformation, and conditional branching. Every state change is recorded in an immutable PostgreSQL audit trail with hash-chain integrity verification.
+
+## Documentation
+
+- [README](README.md): Project overview, quick start, architecture, auth model
+- [License](LICENSE): Elastic License 2.0
+- [Changelog](CHANGELOG.md): Release history
+- [Security](SECURITY.md): Vulnerability reporting policy
+
+## AI Agent Guides
+
+- [AGENTS.md](AGENTS.md): Universal AI agent entry point — quick start, structure, conventions, what not to do
+- [CLAUDE.md](CLAUDE.md): Deep reference for AI agents — patterns, auth model, database, dependencies
+
+## API
+
+- [OpenAPI Spec (YAML)](api/openapi.yaml): Full OpenAPI specification
+- [Swagger JSON](api/swagger.json): Swagger documentation
+- [Postman Collection](postman/plugin.postman_collection.json): Postman collection for API testing
+
+## Architecture
+
+- [Bootstrap](internal/bootstrap/): Composition root — config, DI, server lifecycle, database connections
+- [HTTP Handlers](internal/adapters/http/in/): Fiber handlers, routes, middleware, auth guard
+- [MongoDB Repos](internal/adapters/mongodb/): Domain data repositories (workflow, execution, executor, provider, dashboard)
+- [PostgreSQL Repos](internal/adapters/postgresql/): Audit trail repository
+- [Command Services](internal/services/command/): Write operations (CQRS commands)
+- [Query Services](internal/services/query/): Read operations (CQRS queries)
+- [Domain Models](pkg/model/): Workflow, Execution, ExecutorConfiguration, ProviderConfiguration, AuditEntry
+- [Error Constants](pkg/constant/errors.go): Error codes (FLK-0001 through FLK-0612)
+- [Error Types](pkg/errors.go): Typed errors — EntityNotFound, Validation, Conflict, Unauthorized, Forbidden, etc.
+- [Executor Catalog](pkg/executor/): Provider/executor contracts, catalog, runner
+- [Built-in Executors](pkg/executors/): HTTP, S3, Midaz, Tracer executors
+- [Circuit Breaker](pkg/circuitbreaker/): Resilience for external provider calls
+- [Condition Evaluator](pkg/condition/): Workflow edge condition evaluation
+- [Transformation](pkg/transformation/): Data transformation language for workflow nodes
+- [Triggers](pkg/triggers/): Trigger definitions (webhook, schedule)
+- [Webhook Registry](pkg/webhook/): Webhook route registry for incoming triggers
+
+## Configuration
+
+- [.env.example](.env.example): All environment variables with defaults
+- [Dockerfile](Dockerfile): Multi-stage build (golang:1.26-alpine -> distroless)
+- [docker-compose.yml](docker-compose.yml): Production-like stack (MongoDB RS + Audit PG + Flowker)
+- [docker-compose.dev.yml](docker-compose.dev.yml): Dev stack (MongoDB + Audit PG only)
+- [Linter Config](.golangci.yml): golangci-lint v2 configuration
+- [Migrations](migrations/): PostgreSQL audit trail migrations
+
+## Development
+
+- [Makefile](Makefile): Build, test, lint, Docker, docs, dev commands
+- [Project Rules](docs/PROJECT_RULES.md): Architecture patterns, coding conventions, testing standards
+- [Tests](tests/): Integration and E2E test suites
+- [Scripts](scripts/): Coverage, docs generation, environment checks, API validation
+
+## Optional
+
+- [Security Policy](SECURITY.md): Vulnerability reporting
+- [GitHub Workflows](.github/workflows/): CI/CD pipelines
