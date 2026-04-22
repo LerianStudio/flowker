@@ -1,0 +1,621 @@
+# Lerian Flowker — Full Reference
+
+> Workflow orchestration platform for financial validation. Go single-service with Fiber v2 HTTP API, MongoDB (replica set) for domain data, and PostgreSQL for audit trail. Validates transactions through external providers (KYC, AML, fraud detection) before writing to core banking ledgers. Dual authentication: OIDC/JWT (Access Manager) for management routes, API key for webhook routes. Hexagonal architecture with CQRS. Elastic License 2.0.
+
+---
+
+## 1. Product Overview
+
+Flowker orchestrates pre-ledger validation workflows for financial institutions. Before a transaction is written to a core banking ledger (e.g., Midaz), Flowker routes it through a configurable graph of external validation providers — KYC checks, AML screening, fraud detection, document verification — ensuring compliance and producing a complete, tamper-evident audit trail.
+
+Key capabilities:
+- **Directed-graph workflows**: Define validation pipelines as nodes (executors) and edges (conditions)
+- **Provider abstraction**: Built-in executors for HTTP, S3, Midaz, Tracer; extensible via catalog
+- **Workflow lifecycle**: Draft -> Active -> Inactive with full state-machine enforcement
+- **Conditional branching**: Edge conditions evaluate executor outputs to determine next steps
+- **Data transformation**: Kazaam-based input/output mapping between workflow nodes
+- **Circuit breaker resilience**: Per-provider circuit breakers for external calls
+- **Idempotent execution**: Idempotency-key header prevents duplicate workflow runs
+- **Immutable audit trail**: Every state change recorded in PostgreSQL with hash-chain integrity
+- **Webhook triggers**: Workflows can be triggered by incoming webhooks with token verification
+- **Dashboard analytics**: Workflow and execution summary dashboards
+- **Connectivity testing**: Test executor and provider configurations before activation
+
+## 2. Architecture
+
+### 2.1 Components
+
+| Component | Port | Description | Data Stores |
+|-----------|------|-------------|-------------|
+| **Flowker** | 4021 | Single HTTP API service | MongoDB (domain data), PostgreSQL (audit trail) |
+
+### 2.2 Pattern: Hexagonal Architecture with CQRS
+
+```
+Handlers (HTTP) -> Services (Command/Query) -> Repositories (MongoDB/PostgreSQL)
+       |                    |                           |
+    Models (pkg/model)   Models                      Models
+```
+
+Dependencies flow inward. Inner layers must not depend on outer layers. Interfaces defined where used.
+
+### 2.3 Directory Structure
+
+```
+flowker/
+├── cmd/app/                    # main.go entry point
+├── internal/
+│   ├── adapters/
+│   │   ├── http/in/            # Fiber HTTP handlers + routes + middleware
+│   │   │   ├── audit/          # Audit event handlers
+│   │   │   ├── catalog/        # Provider/executor catalog handlers
+│   │   │   ├── dashboard/      # Dashboard summary handlers
+│   │   │   ├── execution/      # Workflow execution handlers
+│   │   │   ├── executor_configuration/ # Executor config CRUD handlers
+│   │   │   ├── health/         # Liveness/readiness probes
+│   │   │   ├── middleware/     # Auth guard, client IP, fault injection
+│   │   │   ├── provider_configuration/ # Provider config CRUD handlers
+│   │   │   ├── webhook/        # Incoming webhook trigger handler
+│   │   │   └── workflow/       # Workflow CRUD + lifecycle handlers
+│   │   ├── mongodb/            # MongoDB repositories
+│   │   │   ├── dashboard/      # Dashboard aggregation repo
+│   │   │   ├── execution/      # Execution repo
+│   │   │   ├── executor_configuration/ # Executor config repo
+│   │   │   ├── mocks/          # Shared test mocks
+│   │   │   ├── provider_configuration/ # Provider config repo
+│   │   │   └── workflow/       # Workflow repo
+│   │   └── postgresql/
+│   │       └── audit/          # PostgreSQL audit trail repo
+│   ├── bootstrap/              # Config, DI, server lifecycle, DB connections
+│   ├── services/
+│   │   ├── command/            # Write operations (43 files)
+│   │   └── query/              # Read operations (25 files)
+│   └── testutil/               # Shared test helpers
+├── pkg/
+│   ├── circuitbreaker/         # Per-provider circuit breaker (sony/gobreaker)
+│   ├── clock/                  # Clock abstraction for deterministic tests
+│   ├── condition/              # Workflow edge condition evaluator
+│   ├── constant/               # Error codes, pagination, app constants
+│   ├── contextutil/            # Context utilities
+│   ├── errors.go               # Typed error structs + factory functions
+│   ├── executor/               # Executor catalog, provider, runner, template contracts
+│   │   └── base/               # Base executor implementation
+│   ├── executors/              # Built-in executors
+│   │   ├── http/               # HTTP executor (REST calls)
+│   │   ├── midaz/              # Midaz ledger executor
+│   │   ├── s3/                 # S3 storage executor
+│   │   └── tracer/             # Tracer/logging executor
+│   ├── model/                  # Domain models (29 files) with Swagger annotations
+│   ├── net/http/               # HTTP utilities, cursor pagination, Fiber helpers
+│   ├── pagination/             # Shared cursor parsing/encoding
+│   ├── shell/                  # Makefile color/utility includes
+│   ├── templates/              # Workflow template definitions
+│   ├── transformation/         # Kazaam-based data transformation
+│   ├── triggers/               # Trigger definitions (webhook, schedule)
+│   └── webhook/                # Webhook route registry
+├── tests/
+│   ├── e2e/                    # End-to-end tests (testcontainers)
+│   └── integration/            # Integration tests (testcontainers)
+├── migrations/                 # PostgreSQL audit trail SQL migrations
+├── mongodb/                    # MongoDB Docker init scripts (replica set)
+├── api/                        # Generated Swagger/OpenAPI artifacts
+├── postman/                    # Postman collection
+├── scripts/                    # CI/build scripts
+├── docs/PROJECT_RULES.md       # Coding standards and conventions
+├── Makefile                    # Build, test, lint, Docker commands
+├── go.mod                      # Module: github.com/LerianStudio/flowker
+└── go.sum
+```
+
+## 3. Domain Models
+
+All models live in `pkg/model/`. Key entities:
+
+### 3.1 Workflow
+- Fields: ID, Name, Description, Version, Status, Nodes, Edges, Metadata, CreatedAt, UpdatedAt
+- Status lifecycle: Draft -> Active -> Inactive (state machine enforced)
+- Nodes: Array of WorkflowNode (executor references with input/output mappings)
+- Edges: Array of WorkflowEdge (source, target, conditions)
+- Rich domain model with validation in constructors
+
+### 3.2 WorkflowNode
+- Fields: ID, Type, ExecutorID, ProviderConfigID, Config, InputMapping, OutputMapping, Transforms
+- Types: trigger, executor, condition, terminal
+- Input/Output mappings: Kazaam-based data transformation specs
+
+### 3.3 WorkflowEdge
+- Fields: ID, Source, Target, Condition
+- Conditions: Evaluated against executor output to determine branching
+
+### 3.4 ExecutorConfiguration
+- Fields: ID, Name, Description, BaseURL, Endpoints, Auth, Status, Metadata, CreatedAt, UpdatedAt
+- Status lifecycle: draft -> configured -> tested -> active | disabled
+- Auth types: none, api_key, bearer, basic, oauth2
+- Endpoints: Array of endpoint definitions (name, path, method)
+
+### 3.5 ProviderConfiguration
+- Fields: ID, Name, Description, ProviderID, Config, Status, Metadata, CreatedAt, UpdatedAt
+- Links a catalog Provider to instance-specific configuration (credentials, URLs)
+- Status: active, disabled
+
+### 3.6 Execution (Workflow Execution)
+- Fields: ID, WorkflowID, WorkflowVersion, Status, Input, Output, NodeResults, StartedAt, CompletedAt, Error
+- Status: pending, running, completed, failed, timed_out
+- NodeResults: Per-node execution results with timing and output
+- Idempotency via `X-Idempotency-Key` header
+
+### 3.7 AuditEntry
+- Fields: ID, EventType, Action, Result, ResourceType, ResourceID, ActorType, ActorID, Details, PreviousHash, Hash, Timestamp
+- Stored in PostgreSQL (not MongoDB)
+- Hash-chain integrity: Each entry references the previous entry's hash
+- Supports search with cursor pagination and hash-chain verification
+
+### 3.8 Dashboard
+- WorkflowSummary: Total workflows by status, recently modified
+- ExecutionSummary: Total executions by status, success/failure rates, timing
+
+## 4. API Reference
+
+### 4.1 Flowker API (default port 4021)
+
+Base path: `/v1`
+
+#### Workflow Resources
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /v1/workflows | Create workflow |
+| POST | /v1/workflows/template | Create workflow from template |
+| GET | /v1/workflows | List workflows |
+| GET | /v1/workflows/:id | Get workflow by ID |
+| GET | /v1/workflows/name/:name | Get workflow by name |
+| PATCH | /v1/workflows/:id | Update workflow |
+| POST | /v1/workflows/:id/clone | Clone workflow |
+| POST | /v1/workflows/:id/activate | Activate workflow |
+| POST | /v1/workflows/:id/deactivate | Deactivate workflow |
+| POST | /v1/workflows/:id/draft | Move workflow to draft |
+| DELETE | /v1/workflows/:id | Delete workflow |
+
+#### Execution Resources
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /v1/executions | Execute workflow |
+| GET | /v1/executions | List executions |
+| GET | /v1/executions/:id | Get execution |
+| GET | /v1/executions/:id/results | Get execution node results |
+
+#### Executor Configuration Resources
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /v1/executors | Create executor configuration |
+| GET | /v1/executors | List executor configurations |
+| GET | /v1/executors/:id | Get executor configuration |
+| GET | /v1/executors/name/:name | Get executor configuration by name |
+| PATCH | /v1/executors/:id | Update executor configuration |
+| POST | /v1/executors/:id/activate | Activate executor configuration |
+| POST | /v1/executors/:id/disable | Disable executor configuration |
+| POST | /v1/executors/:id/enable | Enable executor configuration |
+| POST | /v1/executors/:id/test | Test executor connectivity |
+| DELETE | /v1/executors/:id | Delete executor configuration |
+
+#### Provider Configuration Resources
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /v1/provider-configurations | Create provider configuration |
+| GET | /v1/provider-configurations | List provider configurations |
+| GET | /v1/provider-configurations/:id | Get provider configuration |
+| PATCH | /v1/provider-configurations/:id | Update provider configuration |
+| POST | /v1/provider-configurations/:id/disable | Disable provider configuration |
+| POST | /v1/provider-configurations/:id/enable | Enable provider configuration |
+| POST | /v1/provider-configurations/:id/test | Test provider connectivity |
+| DELETE | /v1/provider-configurations/:id | Delete provider configuration |
+
+#### Catalog Resources
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /v1/catalog/providers | List available providers |
+| GET | /v1/catalog/providers/:id | Get provider details (executors, templates) |
+
+#### Dashboard Resources
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /v1/dashboards/workflows/summary | Workflow summary dashboard |
+| GET | /v1/dashboards/executions/summary | Execution summary dashboard |
+
+#### Audit Resources
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /v1/audit-events | Search audit logs (cursor pagination) |
+| GET | /v1/audit-events/:id | Get audit entry by ID |
+| GET | /v1/audit-events/verify | Verify audit hash-chain integrity |
+
+#### Webhook Resources
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /v1/webhooks/:path | Incoming webhook trigger (dynamic path per workflow) |
+
+#### System
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /health | Combined health check (uptime, version, DB checks) |
+| GET | /health/live | Kubernetes liveness probe |
+| GET | /health/ready | Kubernetes readiness probe |
+| GET | /version | Version info |
+| GET | /swagger/* | Swagger UI |
+
+## 5. Error System
+
+### 5.1 Error Codes (pkg/constant/errors.go)
+
+Error codes use the prefix `FLK-` followed by a numeric code.
+
+#### Generic / Parsing
+- `FLK-0001` ErrInvalidRequestBody
+- `FLK-0002` ErrInvalidID
+- `FLK-9999` ErrInternalServer
+
+#### Request Validation / Pagination / Metadata (FLK-0300 to FLK-0315)
+- `FLK-0300` ErrUnexpectedFieldsInTheRequest
+- `FLK-0301` ErrMissingFieldsInRequest
+- `FLK-0302` ErrBadRequest
+- `FLK-0303` ErrCalculationFieldType
+- `FLK-0304` ErrInvalidQueryParameter
+- `FLK-0305` through `FLK-0315` — Date, pagination, sort, metadata validation errors
+
+#### Entity / Business (FLK-0400 to FLK-0402)
+- `FLK-0400` ErrEntityNotFound
+- `FLK-0401` ErrActionNotPermitted
+- `FLK-0402` ErrParentExampleIDNotFound
+
+#### Concurrency (FLK-0350)
+- `FLK-0350` ErrConflictStateChanged
+
+#### Webhook (FLK-0360 to FLK-0363)
+- `FLK-0360` ErrWebhookPathAlreadyRegistered
+- `FLK-0361` ErrWebhookRouteNotFound
+- `FLK-0362` ErrWebhookTokenInvalid
+- `FLK-0363` ErrWebhookPayloadTooLarge
+
+#### Workflow Domain (FLK-0100 to FLK-0159)
+- `FLK-0100` through `FLK-0105` — Workflow not found, duplicate name, invalid status, etc.
+- `FLK-0110` through `FLK-0116` — Workflow validation (name, nodes, edges, trigger)
+- `FLK-0120` through `FLK-0121` — Node validation
+- `FLK-0130` through `FLK-0132` — Edge validation
+- `FLK-0140` through `FLK-0142` — Transformation validation
+- `FLK-0150` through `FLK-0151` — Provider config validation
+
+#### Catalog / Executors / Triggers / Runners (FLK-0200 to FLK-0243)
+- `FLK-0200` through `FLK-0201` — Executor errors
+- `FLK-0210` through `FLK-0211` — Trigger errors
+- `FLK-0220` — Runner not found
+- `FLK-0230` through `FLK-0233` — Provider errors
+- `FLK-0240` through `FLK-0243` — Template errors
+
+#### Provider Configuration (FLK-0290 to FLK-0341)
+- `FLK-0290` through `FLK-0300` — Provider config CRUD and validation errors
+- `FLK-0340` through `FLK-0341` — Connectivity testing (SSRF protection)
+
+#### Executor Configuration (FLK-0250 to FLK-0283)
+- `FLK-0250` through `FLK-0252` — Executor config CRUD errors
+- `FLK-0260` through `FLK-0273` — Executor config validation errors
+- `FLK-0280` through `FLK-0283` — Executor connectivity testing errors
+
+#### Workflow Execution (FLK-0500 to FLK-0509)
+- `FLK-0500` ErrExecutionNotFound
+- `FLK-0501` ErrExecutionNotActive
+- `FLK-0502` ErrExecutionInProgress
+- `FLK-0503` ErrExecutionTimeout
+- `FLK-0504` ErrExecutionNodeFailed
+- `FLK-0505` ErrExecutionDuplicate
+- `FLK-0506` ErrExecutionInputTooLarge
+- `FLK-0507` ErrExecutionCircuitOpen
+- `FLK-0508` ErrExecutionCycleDetected
+- `FLK-0509` ErrMissingIdempotencyKey
+
+#### Audit Trail (FLK-0600 to FLK-0612)
+- `FLK-0600` through `FLK-0612` — Audit entry validation, search, and connectivity errors
+
+### 5.2 Error Types (pkg/errors.go)
+
+| Type | HTTP Status | Use Case |
+|------|-------------|----------|
+| EntityNotFoundError | 404 | Entity not found |
+| ValidationError | 400 | Input validation failures |
+| EntityConflictError | 409 | Duplicate entities |
+| UnauthorizedError | 401 | Missing/invalid auth |
+| ForbiddenError | 403 | Insufficient privileges |
+| UnprocessableOperationError | 422 | Business rule violations |
+| FailedPreconditionError | 412 | Configuration errors |
+| InternalServerError | 500 | Unexpected errors |
+| ValidationKnownFieldsError | 400 | Field-level validation |
+| ValidationUnknownFieldsError | 400 | Unexpected fields |
+| HTTPError | varies | HTTP client errors |
+
+### 5.3 Error Handling Pattern
+
+```go
+// Business errors: return directly
+if errors.Is(err, constant.ErrEntityNotFound) {
+    return nil, pkg.ValidateBusinessError(constant.ErrEntityNotFound, "Workflow")
+}
+
+// Technical errors: wrap with context
+return nil, fmt.Errorf("failed to create workflow: %w", err)
+```
+
+## 6. Authentication
+
+Flowker uses a dual authentication model controlled by environment flags:
+
+| Route Family | Auth Method | Relevant Flags |
+|---|---|---|
+| `/v1/workflows/*`, `/v1/executions/*`, `/v1/catalog/*`, `/v1/dashboards/*`, `/v1/audit-events/*`, `/v1/executors/*`, `/v1/provider-configurations/*` | Access Manager (OIDC/JWT via `lib-auth/v2`) when `PLUGIN_AUTH_ENABLED=true`; falls back to API-key (`X-API-Key` header) | `PLUGIN_AUTH_ENABLED`, `PLUGIN_AUTH_ADDRESS`, `API_KEY_ENABLED`, `API_KEY` |
+| `/v1/webhooks/*` | API key (`X-API-Key`) + per-webhook `X-Webhook-Token` | `API_KEY_ENABLED`, `API_KEY` |
+| `/health/*`, `/swagger/*`, `/version` | Public | — |
+
+Flag combinations:
+
+| `PLUGIN_AUTH_ENABLED` | `API_KEY_ENABLED` | Management Routes | Webhook Routes |
+|---|---|---|---|
+| `true` | any | Access Manager | API key + webhook token |
+| `false` | `true` | API key | API key + webhook token |
+| `false` | `false` | Unauthenticated (dev only) | Unauthenticated (handler still checks webhook token) |
+
+## 7. Environment Variables
+
+Source of truth: `internal/bootstrap/config.go` (Config struct) and `.env.example`.
+
+### 7.1 Application
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| ENV_NAME | development | Environment name |
+| SERVER_ADDRESS | :4021 | Listen address |
+| VERSION | v1.0.0 | Application version |
+| LOG_LEVEL | debug | Log level |
+
+### 7.2 MongoDB
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| MONGO_URI | (constructed) | Full MongoDB connection URI (replica set) |
+| MONGO_DB_NAME | flowker | Database name |
+| MONGO_TLS_CA_CERT | — | Base64-encoded PEM CA certificate for TLS |
+| MONGO_ROOT_USER | root | Root user (Docker init) |
+| MONGO_ROOT_PASSWORD | — | Root password (Docker init) |
+| MONGO_APP_USER | flowker | Application user |
+| MONGO_APP_PASSWORD | — | Application password |
+| MONGO_HOST | flowker-mongodb-primary | Primary host |
+| MONGO_PORT | 27017 | Primary port |
+| MONGO_REPLICA_SET | rs0 | Replica set name |
+| MONGO_MAX_POOL_SIZE | 10 | Connection pool size |
+
+### 7.3 Audit Database (PostgreSQL)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| AUDIT_DB_HOST | flowker-audit-postgres | PostgreSQL host (mandatory) |
+| AUDIT_DB_PORT | 5432 | Port |
+| AUDIT_DB_USER | flowker_audit | Username |
+| AUDIT_DB_PASSWORD | — | Password |
+| AUDIT_DB_NAME | flowker_audit | Database name |
+| AUDIT_DB_SSL_MODE | disable | SSL mode |
+| AUDIT_MIGRATIONS_PATH | ./migrations | SQL migrations path |
+
+### 7.4 Authentication
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| PLUGIN_AUTH_ENABLED | false | Enable Access Manager (OIDC/JWT) |
+| PLUGIN_AUTH_ADDRESS | — | Access Manager service URL |
+| API_KEY_ENABLED | false | Enable API key auth fallback |
+| API_KEY | — | Static API key value |
+
+### 7.5 Swagger
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| SWAGGER_TITLE | Flowker API | Swagger page title |
+| SWAGGER_DESCRIPTION | — | Swagger description |
+| SWAGGER_VERSION | (VERSION) | Swagger version |
+| SWAGGER_HOST | localhost:4021 | Swagger host |
+| SWAGGER_BASE_PATH | / | Base path |
+| SWAGGER_SCHEMES | http | URL schemes |
+
+### 7.6 CORS
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| CORS_ALLOWED_ORIGINS | * | Comma-separated origin allowlist |
+
+### 7.7 Feature Flags
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| FAULT_INJECTION_ENABLED | false | Enable fault injection middleware (testing) |
+| SKIP_LIB_COMMONS_TELEMETRY | false | Skip lib-commons telemetry injection |
+| SSRF_ALLOW_PRIVATE | false | Allow SSRF to private IPs (dev only, NEVER in prod) |
+
+### 7.8 OpenTelemetry
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| OTEL_RESOURCE_SERVICE_NAME | flowker | Service name in traces |
+| OTEL_LIBRARY_NAME | github.com/LerianStudio/flowker | Instrumentation library |
+| OTEL_RESOURCE_SERVICE_VERSION | (VERSION) | Service version |
+| OTEL_RESOURCE_DEPLOYMENT_ENVIRONMENT | (ENV_NAME) | Deployment environment |
+| OTEL_EXPORTER_OTLP_ENDPOINT | flowker-otel-lgtm:4317 | OTLP gRPC endpoint |
+| ENABLE_TELEMETRY | false | Enable telemetry export |
+
+## 8. Provider vs Executor Model
+
+### 8.1 Providers (Static Catalog)
+
+Providers are registered in code at startup via `pkg/executors/register.go` and `pkg/triggers/`. They represent external service groupings:
+
+| Provider | Type | Description |
+|----------|------|-------------|
+| HTTP | executor | Generic HTTP/REST calls |
+| S3 | executor | AWS S3 storage operations |
+| Midaz | executor | Midaz ledger integration |
+| Tracer | executor | Logging/tracing executor |
+| Webhook | trigger | Incoming webhook trigger |
+| Schedule | trigger | Scheduled trigger (cron) |
+
+### 8.2 Executors (Dynamic Configuration)
+
+Executors are specific operations within a provider, configured dynamically via API/DB:
+- Stored in MongoDB collection `executor_configurations`
+- Lifecycle: draft -> configured -> tested -> active | disabled
+- Each has base URL, endpoints, auth configuration
+- Connectivity testing verifies reachability before activation
+
+### 8.3 Provider Configurations (Dynamic)
+
+Provider configurations link a catalog provider to instance-specific settings:
+- Stored in MongoDB collection `provider_configurations`
+- Contains credentials, URLs, custom config per provider instance
+- Referenced by workflow nodes to resolve runtime configuration
+
+## 9. Build & Development
+
+### 9.1 Prerequisites
+
+- Go 1.25+
+- Docker (with `docker compose`)
+- golangci-lint v2
+
+### 9.2 Makefile Commands
+
+```bash
+# Setup
+make dev-setup                # Install tools + copy .env.example -> .env
+make setup-git-hooks          # Configure git hooks
+make set-env                  # Copy .env.example -> .env
+
+# Local Development
+make dev                      # Start Mongo + Audit PG + Go app locally
+make clear                    # Stop dev stack, remove volumes/networks
+
+# Build & Run
+make build                    # Build binary to .bin/flowker
+make run                      # Run with .env
+make up                       # Docker compose up (production-like)
+make down                     # Docker compose down
+make rebuild-up               # Rebuild and restart
+
+# Quality
+make lint                     # golangci-lint with auto-fix
+make format                   # go fmt
+make tidy                     # go mod tidy
+make sec                      # gosec security checks
+
+# Testing
+make test                     # All tests (unit + integration + e2e)
+make test-unit                # Unit tests only
+make test-integration         # Integration tests (testcontainers)
+make test-e2e                 # E2E tests (testcontainers)
+make cover                    # Coverage summary
+make cover-html               # HTML coverage report
+
+# Docs
+make generate-docs            # Generate Swagger/OpenAPI artifacts
+make validate-api-docs        # Generate + validate API docs
+```
+
+### 9.3 Build Tags
+
+Tests use build tags to separate suites:
+```bash
+go test -tags=unit ./...                   # Unit tests
+go test -tags=integration ./...            # Integration tests (MongoDB + PG)
+go test -tags=e2e ./...                    # E2E tests (full HTTP server)
+go test -tags=unit,integration,e2e ./...   # All suites
+```
+
+### 9.4 Docker Image
+
+- Build: `golang:1.26-alpine` -> `gcr.io/distroless/static-debian12`
+- Runs as `nonroot:nonroot`
+- Copies binary + migrations into final image
+
+## 10. MongoDB Collections
+
+| Collection | Description |
+|------------|-------------|
+| workflows | Workflow definitions (nodes, edges, metadata) |
+| executor_configurations | Dynamic executor configs (URLs, auth, endpoints) |
+| provider_configurations | Provider instance configs (credentials, settings) |
+| workflow_executions | Execution records with node results |
+| dashboard aggregations | Computed via MongoDB aggregation pipelines |
+
+## 11. PostgreSQL Schema (Audit)
+
+Single migration `000001_audit_events` creates the audit_events table:
+- Immutable append-only table
+- Hash-chain: each entry includes hash of previous entry
+- Supports cursor-based pagination for search
+- Integrity verification via hash-chain walk
+
+## 12. Key Dependencies
+
+| Dependency | Version | Purpose |
+|------------|---------|---------|
+| github.com/LerianStudio/lib-commons/v4 | v4.6.0-beta.7 | Shared library (logging, telemetry, HTTP, config) |
+| github.com/LerianStudio/lib-auth/v2 | v2.6.0 | Authentication middleware (Access Manager) |
+| github.com/gofiber/fiber/v2 | v2.52.12 | HTTP framework |
+| go.mongodb.org/mongo-driver | v1.17.9 | MongoDB driver |
+| github.com/jackc/pgx/v5 | v5.9.2 | PostgreSQL driver |
+| github.com/go-playground/validator/v10 | v10.30.2 | Input DTO validation |
+| github.com/stretchr/testify | v1.11.1 | Test assertions |
+| go.uber.org/mock | v0.6.0 | Mock generation |
+| github.com/testcontainers/testcontainers-go | v0.42.0 | Integration test containers |
+| github.com/sony/gobreaker/v2 | v2.4.0 | Circuit breaker |
+| github.com/qntfy/kazaam/v4 | v4.0.1 | JSON transformation |
+| github.com/santhosh-tekuri/jsonschema/v6 | v6.0.2 | JSON Schema validation |
+| github.com/swaggo/swag | v1.16.6 | Swagger doc generation |
+| github.com/Masterminds/squirrel | v1.5.4 | SQL query builder (audit) |
+| go.opentelemetry.io/otel | v1.43.0 | OpenTelemetry tracing |
+| github.com/google/uuid | v1.6.0 | UUID generation |
+| github.com/golang-jwt/jwt/v5 | v5.3.1 | JWT parsing |
+| github.com/joho/godotenv | v1.5.1 | .env file loading |
+
+## 13. Testing
+
+### Test Types
+- **Unit tests**: `*_test.go` files alongside source (tag: `unit` or no tag)
+- **Integration tests**: `tests/integration/` with testcontainers (tag: `integration`)
+- **E2E tests**: `tests/e2e/` with testcontainers (tag: `e2e`)
+
+### Frameworks
+- `stretchr/testify` for assertions and suites
+- `go.uber.org/mock` for mock generation
+- `testcontainers-go` for MongoDB and PostgreSQL containers
+
+### Coverage
+- Ignore list: `scripts/coverage_ignore.txt`
+- HTML report: `artifacts/coverage.html`
+
+## 14. Commit Message Format
+
+Git hooks enforce (protected branches: main, develop, release/*):
+
+```
+type(scope): description
+
+type: feature|fix|refactor|style|test|docs|build
+scope: 1-20 characters
+description: 1-100 characters
+```
+
+Examples:
+- `feature(auth): implement JWK authentication`
+- `fix(workflow): resolve execution state persistence`
