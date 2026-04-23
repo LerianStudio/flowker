@@ -26,7 +26,6 @@ jobs:
     if: >-
       !cancelled() &&
       needs.build.result == 'success' &&
-      (contains(github.ref, '-beta') || contains(github.ref, '-rc')) &&
       needs.build.outputs.has_builds == 'true'
     uses: LerianStudio/github-actions-shared-workflows/.github/workflows/gitops-update.yml@v1.26.3
     with:
