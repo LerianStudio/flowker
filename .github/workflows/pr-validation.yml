@@ -29,6 +29,7 @@ jobs:
         revert
       pr_title_scopes: |
         api
+        ci
         cmd
         internal
         handlers
