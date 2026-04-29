@@ -8,7 +8,7 @@ import (
 	"context"
 	"time"
 
-	libHTTP "github.com/LerianStudio/lib-commons/v4/commons/net/http"
+	libHTTP "github.com/LerianStudio/lib-commons/v5/commons/net/http"
 	"github.com/gofiber/fiber/v2"
 )
 

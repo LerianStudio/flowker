@@ -40,10 +40,10 @@ import (
 	"github.com/LerianStudio/flowker/pkg/webhook"
 
 	authMiddleware "github.com/LerianStudio/lib-auth/v2/auth/middleware"
-	libCommons "github.com/LerianStudio/lib-commons/v4/commons"
-	libLog "github.com/LerianStudio/lib-commons/v4/commons/log"
-	libOtel "github.com/LerianStudio/lib-commons/v4/commons/opentelemetry"
-	libZap "github.com/LerianStudio/lib-commons/v4/commons/zap"
+	libCommons "github.com/LerianStudio/lib-commons/v5/commons"
+	libLog "github.com/LerianStudio/lib-commons/v5/commons/log"
+	libOtel "github.com/LerianStudio/lib-commons/v5/commons/opentelemetry"
+	libZap "github.com/LerianStudio/lib-commons/v5/commons/zap"
 )
 
 // Config is the top level configuration struct for the entire application.

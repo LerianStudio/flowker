@@ -17,7 +17,7 @@ import (
 	"github.com/LerianStudio/flowker/pkg/constant"
 	"github.com/LerianStudio/flowker/pkg/model"
 	"github.com/LerianStudio/flowker/pkg/webhook"
-	libHTTP "github.com/LerianStudio/lib-commons/v4/commons/net/http"
+	libHTTP "github.com/LerianStudio/lib-commons/v5/commons/net/http"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )

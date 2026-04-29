@@ -9,9 +9,9 @@ import (
 	"errors"
 
 	"github.com/LerianStudio/flowker/pkg/model"
-	libCommons "github.com/LerianStudio/lib-commons/v4/commons"
-	libLog "github.com/LerianStudio/lib-commons/v4/commons/log"
-	libOtel "github.com/LerianStudio/lib-commons/v4/commons/opentelemetry"
+	libCommons "github.com/LerianStudio/lib-commons/v5/commons"
+	libLog "github.com/LerianStudio/lib-commons/v5/commons/log"
+	libOtel "github.com/LerianStudio/lib-commons/v5/commons/opentelemetry"
 )
 
 // GetWorkflowSummaryQuery handles retrieving the workflow dashboard summary.
