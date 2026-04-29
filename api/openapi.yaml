@@ -8,54 +8,22 @@ info:
 servers:
 - url: //localhost:4021/
 paths:
-  /health:
+  /readyz:
     get:
-      description: Returns detailed health information including uptime and version
+      description: Returns dependency health status following canonical contract
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/internal_adapters_http_in_health.HealthResponse'
-          description: OK
+                $ref: '#/components/schemas/internal_adapters_http_in_readyz.Response'
+          description: Service is healthy - all dependencies up/skipped/n-a
         "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/internal_adapters_http_in_health.HealthResponse'
-          description: Service Unavailable
-      summary: Combined health check
-      tags:
-      - Health
-  /health/live:
-    get:
-      description: Returns 200 OK if the application process is running
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/internal_adapters_http_in_health.HealthResponse'
-          description: OK
-      summary: Kubernetes liveness probe
-      tags:
-      - Health
-  /health/ready:
-    get:
-      description: Returns 200 OK if the application is ready to serve traffic
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/internal_adapters_http_in_health.HealthResponse'
-          description: OK
-        "503":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/internal_adapters_http_in_health.HealthResponse'
-          description: Service Unavailable
+                $ref: '#/components/schemas/internal_adapters_http_in_readyz.Response'
+          description: Service is unhealthy - one or more dependencies down/degraded
       summary: Kubernetes readiness probe
       tags:
       - Health
@@ -3386,36 +3354,56 @@ components:
         valid:
           type: boolean
       type: object
-    internal_adapters_http_in_health.CheckResult:
+    internal_adapters_http_in_readyz.DependencyCheck:
       example:
-        message: message
+        reason: reason
+        tls: true
+        error: error
+        breaker_state: breaker_state
+        latency_ms: 0
         status: status
       properties:
-        message:
+        breaker_state:
+          description: when dep is breaker-wrapped
+          type: string
+        error:
+          description: when status is down or degraded
+          type: string
+        latency_ms:
+          description: when status is up or degraded
+          type: integer
+        reason:
+          description: when status is skipped or n/a
           type: string
         status:
+          description: up/down/degraded/skipped/n/a (closed set)
           type: string
+        tls:
+          description: when dependency supports TLS
+          type: boolean
       type: object
-    internal_adapters_http_in_health.HealthResponse:
+    internal_adapters_http_in_readyz.Response:
       example:
         checks:
           key:
-            message: message
+            reason: reason
+            tls: true
+            error: error
+            breaker_state: breaker_state
+            latency_ms: 0
             status: status
         version: version
+        deployment_mode: deployment_mode
         status: status
-        timestamp: timestamp
-        uptime: uptime
       properties:
         checks:
           additionalProperties:
-            $ref: '#/components/schemas/internal_adapters_http_in_health.CheckResult'
+            $ref: '#/components/schemas/internal_adapters_http_in_readyz.DependencyCheck'
           type: object
+        deployment_mode:
+          type: string
         status:
-          type: string
-        timestamp:
-          type: string
-        uptime:
+          description: '"healthy" or "unhealthy"'
           type: string
         version:
           type: string

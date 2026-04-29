@@ -37,9 +37,8 @@ func TestAuth_PublicEndpoints_NoAuthRequired(t *testing.T) {
 		name string
 		path string
 	}{
-		{name: "liveness probe", path: "/health/live"},
-		{name: "readiness probe", path: "/health/ready"},
-		{name: "combined health", path: "/health"},
+		{name: "liveness probe", path: "/health"},
+		{name: "readiness probe", path: "/readyz"},
 		{name: "swagger docs", path: "/swagger/index.html"},
 	}
 

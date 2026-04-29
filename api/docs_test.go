@@ -101,7 +101,7 @@ func TestDocTemplate(t *testing.T) {
 				"/v1/workflows/{id}",
 				"/v1/catalog/executors",
 				"/v1/catalog/triggers",
-				"/health",
+				// NOTE: /health and /readyz are infrastructure routes excluded from OpenAPI spec
 			},
 		},
 		{
