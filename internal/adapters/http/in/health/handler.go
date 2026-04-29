@@ -12,6 +12,11 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// SelfProbeOKFunc is a function that returns whether the startup self-probe passed.
+// This is set by the bootstrap package to avoid import cycles.
+// Default: always returns true (for backward compatibility).
+var SelfProbeOKFunc = func() bool { return true }
+
 // Version is set during build via ldflags
 var Version = "dev"
 
@@ -54,70 +59,29 @@ func NewHealthHandler(dbChecker DatabaseChecker) (*HealthHandler, error) {
 	}, nil
 }
 
-// Liveness handles liveness probe (GET /health/live)
-// Returns 200 OK if the application process is running
-// Used by Kubernetes to restart unhealthy pods
-// @Summary      Kubernetes liveness probe
-// @Description  Returns 200 OK if the application process is running
-// @Tags         Health
-// @Produce      json
-// @Success      200 {object} HealthResponse
-// @Router       /health/live [get]
-func (h *HealthHandler) Liveness(c *fiber.Ctx) error {
-	response := HealthResponse{
-		Status:    "alive",
-		Timestamp: time.Now(),
-	}
-
-	return libHTTP.Respond(c, fiber.StatusOK, response)
-}
-
-// Readiness handles readiness probe (GET /health/ready)
-// Returns 200 OK if the application is ready to serve traffic
-// Returns 503 Service Unavailable if dependencies are not ready
-// Used by load balancers to route traffic
-// @Summary      Kubernetes readiness probe
-// @Description  Returns 200 OK if the application is ready to serve traffic
-// @Tags         Health
-// @Produce      json
-// @Success      200 {object} HealthResponse
-// @Failure      503 {object} HealthResponse
-// @Router       /health/ready [get]
-func (h *HealthHandler) Readiness(c *fiber.Ctx) error {
-	checks := make(map[string]CheckResult)
-
-	// Check database connectivity
-	dbStatus := h.checkDatabase()
-	checks["database"] = dbStatus
-
-	// Determine overall status
-	overallStatus := "ready"
-	statusCode := fiber.StatusOK
-
-	if dbStatus.Status != "healthy" {
-		overallStatus = "not_ready"
-		statusCode = fiber.StatusServiceUnavailable
-	}
-
-	response := HealthResponse{
-		Status:    overallStatus,
-		Timestamp: time.Now(),
-		Checks:    checks,
-	}
-
-	return libHTTP.Respond(c, statusCode, response)
-}
-
 // Health handles combined health check (GET /health)
-// Returns detailed health information including uptime and version
-// @Summary      Combined health check
-// @Description  Returns detailed health information including uptime and version
-// @Tags         Health
-// @Produce      json
-// @Success      200 {object} HealthResponse
-// @Failure      503 {object} HealthResponse
-// @Router       /health [get]
+// Returns detailed health information including uptime and version.
+// GATE: Returns 503 immediately if startup self-probe did not pass.
+// NOTE: Infrastructure routes (/health, /readyz) are excluded from OpenAPI spec.
 func (h *HealthHandler) Health(c *fiber.Ctx) error {
+	// Gate on self-probe result: if startup probe failed, return 503 immediately.
+	// This ensures the service doesn't accept traffic until all dependencies
+	// were verified healthy at startup.
+	if !SelfProbeOKFunc() {
+		return libHTTP.Respond(c, fiber.StatusServiceUnavailable, HealthResponse{
+			Status:    "unhealthy",
+			Version:   Version,
+			Uptime:    time.Since(h.startTime).String(),
+			Timestamp: time.Now(),
+			Checks: map[string]CheckResult{
+				"self_probe": {
+					Status:  "failed",
+					Message: "startup self-probe did not pass",
+				},
+			},
+		})
+	}
+
 	checks := make(map[string]CheckResult)
 
 	// Check database connectivity

@@ -13,7 +13,9 @@ import (
 
 func TestHealthEndpoints(t *testing.T) {
 	client := httpClient()
-	urls := []string{"/health", "/health/live", "/health/ready"}
+	// /health is the liveness probe (gated by self-probe)
+	// /readyz is the readiness probe (checks all dependencies)
+	urls := []string{"/health", "/readyz"}
 
 	for _, path := range urls {
 		path := path // capture range variable

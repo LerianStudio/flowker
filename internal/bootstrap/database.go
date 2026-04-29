@@ -179,3 +179,23 @@ func (dm *DatabaseManager) IsConnected() bool {
 func (dm *DatabaseManager) GetConfig() *MongoConfig {
 	return dm.config
 }
+
+// GetURI returns the MongoDB URI for TLS detection.
+// Implements readyz.MongoDBConfig interface.
+func (dm *DatabaseManager) GetURI() string {
+	if dm.config == nil {
+		return ""
+	}
+
+	return dm.config.URI
+}
+
+// GetTLSCACert returns the TLS CA certificate for TLS detection.
+// Implements readyz.MongoDBConfig interface.
+func (dm *DatabaseManager) GetTLSCACert() string {
+	if dm.config == nil {
+		return ""
+	}
+
+	return dm.config.TLSCACert
+}

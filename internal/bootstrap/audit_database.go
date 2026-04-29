@@ -8,6 +8,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
+	"strings"
 
 	libPostgres "github.com/LerianStudio/lib-commons/v5/commons/postgres"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -29,11 +31,34 @@ type AuditDBConfig struct {
 }
 
 // DSN returns the PostgreSQL connection string.
+// Uses url.URL for proper encoding of special characters in credentials.
+// Handles IPv6 literal hosts by bracketing them (e.g., [::1]:5432).
 func (c *AuditDBConfig) DSN() string {
-	return fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
-		c.User, c.Password, c.Host, c.Port, c.DBName, c.SSLMode,
-	)
+	// Format host with port, bracketing IPv6 literals
+	host := formatHostWithPort(c.Host, c.Port)
+
+	u := &url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(c.User, c.Password),
+		Host:   host,
+		Path:   "/" + c.DBName,
+		RawQuery: url.Values{
+			"sslmode": {c.SSLMode},
+		}.Encode(),
+	}
+
+	return u.String()
+}
+
+// formatHostWithPort formats a host and port for use in a URL.
+// IPv6 literal addresses are bracketed (e.g., [::1]:5432).
+func formatHostWithPort(host, port string) string {
+	// Check if host is an IPv6 literal (contains colon but not already bracketed)
+	if strings.Contains(host, ":") && !strings.HasPrefix(host, "[") {
+		return fmt.Sprintf("[%s]:%s", host, port)
+	}
+
+	return fmt.Sprintf("%s:%s", host, port)
 }
 
 // AuditDatabaseManager manages PostgreSQL connection for the audit trail.
@@ -151,6 +176,16 @@ func (m *AuditDatabaseManager) IsConnected() bool {
 // GetConfig returns the audit database configuration.
 func (m *AuditDatabaseManager) GetConfig() *AuditDBConfig {
 	return m.config
+}
+
+// GetSSLMode returns the SSL mode for TLS detection.
+// Implements readyz.PostgreSQLConfig interface.
+func (m *AuditDatabaseManager) GetSSLMode() string {
+	if m == nil || m.config == nil {
+		return ""
+	}
+
+	return m.config.SSLMode
 }
 
 // runMigrations executes version-tracked migrations against the audit database.

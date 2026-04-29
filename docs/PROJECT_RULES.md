@@ -72,12 +72,12 @@ All Flowker code **MUST** use `lib-commons/v4` as the foundation library. This i
 
 ```go
 import (
-    libCommons "github.com/LerianStudio/lib-commons/v5/commons"
-    libZap "github.com/LerianStudio/lib-commons/v5/commons/zap"                 // Logger initialization (bootstrap only)
-    libLog "github.com/LerianStudio/lib-commons/v5/commons/log"                 // Logger interface (services, routes, handlers)
-    libOtel "github.com/LerianStudio/lib-commons/v5/commons/opentelemetry"
-    libHTTP "github.com/LerianStudio/lib-commons/v5/commons/net/http"
-    libMongo "github.com/LerianStudio/lib-commons/v5/commons/mongo"
+    libCommons "github.com/LerianStudio/lib-commons/v4/commons"
+    libZap "github.com/LerianStudio/lib-commons/v4/commons/zap"                 // Logger initialization (bootstrap only)
+    libLog "github.com/LerianStudio/lib-commons/v4/commons/log"                 // Logger interface (services, routes, handlers)
+    libOtel "github.com/LerianStudio/lib-commons/v4/commons/opentelemetry"
+    libHTTP "github.com/LerianStudio/lib-commons/v4/commons/net/http"
+    libMongo "github.com/LerianStudio/lib-commons/v4/commons/mongo"
 )
 ```
 
@@ -396,8 +396,8 @@ All services **MUST** integrate OpenTelemetry using lib-commons.
 
 ```go
 import (
-    libCommons "github.com/LerianStudio/lib-commons/v5/commons"
-    libOtel "github.com/LerianStudio/lib-commons/v5/commons/opentelemetry"
+    libCommons "github.com/LerianStudio/lib-commons/v4/commons"
+    libOtel "github.com/LerianStudio/lib-commons/v4/commons/opentelemetry"
     "go.opentelemetry.io/otel/trace" // OK: Only for trace.Span type
 )
 
@@ -516,7 +516,7 @@ libHTTP.WithError(c, err)
 
 ```go
 import (
-    libHTTP "github.com/LerianStudio/lib-commons/v5/commons/net/http"
+    libHTTP "github.com/LerianStudio/lib-commons/v4/commons/net/http"
     "github.com/gofiber/fiber/v2"
 )
 
@@ -1312,8 +1312,8 @@ All logging **MUST** use `logger.Log(ctx, level, message, fields...)` with typed
 
 ```go
 import (
-    libCommons "github.com/LerianStudio/lib-commons/v5/commons"
-    libLog "github.com/LerianStudio/lib-commons/v5/commons/log"
+    libCommons "github.com/LerianStudio/lib-commons/v4/commons"
+    libLog "github.com/LerianStudio/lib-commons/v4/commons/log"
 )
 
 logger, _, _, _ := libCommons.NewTrackingFromContext(ctx)

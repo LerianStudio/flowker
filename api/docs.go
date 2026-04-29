@@ -16,55 +16,12 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/health": {
+        "/readyz": {
             "get": {
-                "description": "Returns detailed health information including uptime and version",
-                "produces": [
+                "description": "Returns dependency health status following canonical contract",
+                "consumes": [
                     "application/json"
                 ],
-                "tags": [
-                    "Health"
-                ],
-                "summary": "Combined health check",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/internal_adapters_http_in_health.HealthResponse"
-                        }
-                    },
-                    "503": {
-                        "description": "Service Unavailable",
-                        "schema": {
-                            "$ref": "#/definitions/internal_adapters_http_in_health.HealthResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/health/live": {
-            "get": {
-                "description": "Returns 200 OK if the application process is running",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Health"
-                ],
-                "summary": "Kubernetes liveness probe",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/internal_adapters_http_in_health.HealthResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/health/ready": {
-            "get": {
-                "description": "Returns 200 OK if the application is ready to serve traffic",
                 "produces": [
                     "application/json"
                 ],
@@ -74,15 +31,15 @@ const docTemplate = `{
                 "summary": "Kubernetes readiness probe",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Service is healthy - all dependencies up/skipped/n-a",
                         "schema": {
-                            "$ref": "#/definitions/internal_adapters_http_in_health.HealthResponse"
+                            "$ref": "#/definitions/internal_adapters_http_in_readyz.Response"
                         }
                     },
                     "503": {
-                        "description": "Service Unavailable",
+                        "description": "Service is unhealthy - one or more dependencies down/degraded",
                         "schema": {
-                            "$ref": "#/definitions/internal_adapters_http_in_health.HealthResponse"
+                            "$ref": "#/definitions/internal_adapters_http_in_readyz.Response"
                         }
                     }
                 }
@@ -3703,33 +3660,49 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_adapters_http_in_health.CheckResult": {
+        "internal_adapters_http_in_readyz.DependencyCheck": {
             "type": "object",
             "properties": {
-                "message": {
+                "breaker_state": {
+                    "description": "when dep is breaker-wrapped",
+                    "type": "string"
+                },
+                "error": {
+                    "description": "when status is down or degraded",
+                    "type": "string"
+                },
+                "latency_ms": {
+                    "description": "when status is up or degraded",
+                    "type": "integer"
+                },
+                "reason": {
+                    "description": "when status is skipped or n/a",
                     "type": "string"
                 },
                 "status": {
+                    "description": "up/down/degraded/skipped/n/a (closed set)",
                     "type": "string"
+                },
+                "tls": {
+                    "description": "when dependency supports TLS",
+                    "type": "boolean"
                 }
             }
         },
-        "internal_adapters_http_in_health.HealthResponse": {
+        "internal_adapters_http_in_readyz.Response": {
             "type": "object",
             "properties": {
                 "checks": {
                     "type": "object",
                     "additionalProperties": {
-                        "$ref": "#/definitions/internal_adapters_http_in_health.CheckResult"
+                        "$ref": "#/definitions/internal_adapters_http_in_readyz.DependencyCheck"
                     }
                 },
+                "deployment_mode": {
+                    "type": "string"
+                },
                 "status": {
-                    "type": "string"
-                },
-                "timestamp": {
-                    "type": "string"
-                },
-                "uptime": {
+                    "description": "\"healthy\" or \"unhealthy\"",
                     "type": "string"
                 },
                 "version": {
