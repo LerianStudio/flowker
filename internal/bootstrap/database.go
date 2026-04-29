@@ -10,7 +10,7 @@ import (
 	"os"
 	"strconv"
 
-	libMongo "github.com/LerianStudio/lib-commons/v4/commons/mongo"
+	libMongo "github.com/LerianStudio/lib-commons/v5/commons/mongo"
 
 	"go.mongodb.org/mongo-driver/mongo"
 )

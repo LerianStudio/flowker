@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	libCommons "github.com/LerianStudio/lib-commons/v4/commons"
+	libCommons "github.com/LerianStudio/lib-commons/v5/commons"
 	"go.mongodb.org/mongo-driver/bson"
 
 	"github.com/LerianStudio/flowker/pkg"
