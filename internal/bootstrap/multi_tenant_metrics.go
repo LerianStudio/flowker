@@ -58,7 +58,6 @@ func InitMultiTenantMetrics(enabled bool) error {
 	var initErr error
 
 	multiTenantMetricsOnce.Do(func() {
-		multiTenantMetricsEnabled = true
 		meter := otel.GetMeterProvider().Meter(multiTenantMeterName)
 
 		// Counter: tenant connections total
@@ -95,6 +94,12 @@ func InitMultiTenantMetrics(enabled bool) error {
 			"tenant_messages_processed_total",
 			metric.WithDescription("Messages processed per tenant (0 for Flowker - no RabbitMQ)"),
 		)
+		if initErr != nil {
+			return
+		}
+
+		// Only enable metrics after all are successfully created to avoid partial state
+		multiTenantMetricsEnabled = true
 	})
 
 	return initErr

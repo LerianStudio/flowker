@@ -41,7 +41,7 @@ Flowker uses a dual authentication model driven by environment flags. The middle
 |---|---|---|
 | `/v1/workflows/*`, `/v1/executions/*`, `/v1/catalog/*`, `/v1/dashboards/*`, `/v1/audit-events/*`, `/v1/executors/*`, `/v1/provider-configurations/*` | Access Manager (OIDC/JWT via `lib-auth/v2`) when `PLUGIN_AUTH_ENABLED=true`; otherwise falls back to the API-key middleware (header `X-API-Key`) | `PLUGIN_AUTH_ENABLED`, `PLUGIN_AUTH_ADDRESS`, `API_KEY_ENABLED`, `API_KEY` |
 | `/v1/webhooks/*` | Infrastructure API key (header `X-API-Key`) plus the per-webhook `X-Webhook-Token` validated by the handler when the registered webhook defines one | `API_KEY_ENABLED`, `API_KEY` |
-| `/health/*`, `/swagger/*`, `/version` | Public | — |
+| `/health`, `/readyz`, `/swagger/*`, `/version` | Public | — |
 
 Effective behaviour by flag combination:
 

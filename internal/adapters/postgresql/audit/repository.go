@@ -16,7 +16,6 @@ import (
 	"github.com/LerianStudio/flowker/internal/services/query"
 	"github.com/LerianStudio/flowker/pkg/constant"
 	"github.com/LerianStudio/flowker/pkg/model"
-	tmcore "github.com/LerianStudio/lib-commons/v5/commons/tenant-manager/core"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -59,23 +58,20 @@ func NewPostgreSQLRepository(pool *pgxpool.Pool) (*PostgreSQLRepository, error) 
 // Note: Multi-tenant mode for PostgreSQL requires the tenant middleware to inject
 // a *pgxpool.Pool into context. If GetPGContext returns a dbresolver.DB (sql-based),
 // this method falls back to single-tenant mode since pgx-specific features are used.
+//
+// Current limitation: tmcore.GetPGContext returns dbresolver.DB (sql-based interface),
+// but this repository uses pgxpool.Pool for pgx-specific features (e.g., native type handling).
+// For full multi-tenant PostgreSQL support, consider either:
+// 1. Refactoring to database/sql interface
+// 2. Adding tmcore.GetPGXContext helper for pgx-specific pools
+// Until then, this repository operates in single-tenant mode using the fallback pool.
 func (r *PostgreSQLRepository) getPool(ctx context.Context) (*pgxpool.Pool, error) {
-	// Try to get tenant-specific connection from context (multi-tenant mode)
-	// Note: GetPGContext returns dbresolver.DB which is sql-based, not pgx-specific.
-	// For full multi-tenant support with pgx, consider using sql-compatible queries
-	// or a pgx-specific tenant context helper.
-	db := tmcore.GetPGContext(ctx)
-	if db != nil {
-		// In multi-tenant mode with dbresolver.DB, we'd need to adapt to sql interface.
-		// For now, if context has a value but it's not pgxpool-compatible,
-		// we use the fallback. This maintains backward compatibility while
-		// signaling that full multi-tenant PostgreSQL support may require
-		// refactoring to database/sql interface.
-		//
-		// Future enhancement: Add tmcore.GetPGXContext helper for pgx-specific pools.
-	}
+	// Note: We intentionally don't use tmcore.GetPGContext(ctx) here because:
+	// - It returns dbresolver.DB (database/sql compatible)
+	// - This repository requires pgxpool.Pool for pgx-specific features
+	// - Type conversion is not possible without connection re-establishment
+	// The fallback pool is used for all operations until pgx-specific multi-tenant support is added.
 
-	// Single-tenant mode: use fallback
 	if r.fallbackPool == nil {
 		return nil, errors.New("postgresql connection not available")
 	}

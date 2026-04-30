@@ -59,7 +59,13 @@ type TenantInfrastructure struct {
 //   - Optional: Redis Pub/Sub client and event listener for tenant lifecycle events
 func NewTenantInfrastructure(ctx context.Context, cfg *Config, logger libLog.Logger) (*TenantInfrastructure, error) {
 	// Single-tenant mode: return nil (middleware will be nil, passthrough)
-	if !cfg.MultiTenantEnabled || cfg.MultiTenantURL == "" {
+	if !cfg.MultiTenantEnabled {
+		return nil, nil
+	}
+
+	// Multi-tenant enabled but URL not configured - warn and fall back to single-tenant
+	if cfg.MultiTenantURL == "" {
+		logger.Log(ctx, libLog.LevelWarn, "MULTI_TENANT_ENABLED=true but MULTI_TENANT_URL is empty, falling back to single-tenant mode")
 		return nil, nil
 	}
 
