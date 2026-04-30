@@ -109,7 +109,7 @@ func TestMain(m *testing.M) {
 
 	go suite.service.Run()
 
-	if err := waitForServer(fmt.Sprintf("http://%s/health/live", serverAddr), 30*time.Second); err != nil {
+	if err := waitForServer(fmt.Sprintf("http://%s/health", serverAddr), 30*time.Second); err != nil {
 		fmt.Printf("server not ready: %v\n", err)
 		terminate(ctx)
 		os.Exit(1)

@@ -13,8 +13,8 @@ import (
 	"strconv"
 	"strings"
 
-	libCommons "github.com/LerianStudio/lib-commons/v4/commons"
-	libHTTP "github.com/LerianStudio/lib-commons/v4/commons/net/http"
+	libCommons "github.com/LerianStudio/lib-commons/v5/commons"
+	libHTTP "github.com/LerianStudio/lib-commons/v5/commons/net/http"
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"

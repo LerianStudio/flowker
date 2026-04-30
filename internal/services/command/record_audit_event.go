@@ -8,8 +8,8 @@ import (
 	"context"
 	"time"
 
-	libCommons "github.com/LerianStudio/lib-commons/v4/commons"
-	libLog "github.com/LerianStudio/lib-commons/v4/commons/log"
+	libCommons "github.com/LerianStudio/lib-commons/v5/commons"
+	libLog "github.com/LerianStudio/lib-commons/v5/commons/log"
 
 	"github.com/LerianStudio/flowker/pkg/model"
 	"github.com/google/uuid"

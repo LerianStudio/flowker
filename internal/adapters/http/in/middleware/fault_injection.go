@@ -9,8 +9,8 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	libCommons "github.com/LerianStudio/lib-commons/v4/commons"
-	libHTTP "github.com/LerianStudio/lib-commons/v4/commons/net/http"
+	libCommons "github.com/LerianStudio/lib-commons/v5/commons"
+	libHTTP "github.com/LerianStudio/lib-commons/v5/commons/net/http"
 )
 
 // Fault injection constants (headers and values)

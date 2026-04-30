@@ -19,7 +19,7 @@ func getCORSAllowedOrigins(cfg *RouteConfig) string {
 // skipTelemetryPaths avoids instrumenting noisy endpoints.
 func skipTelemetryPaths(c *fiber.Ctx) bool {
 	switch c.Path() {
-	case "/health", "/health/live", "/health/ready":
+	case "/health", "/readyz":
 		return true
 	default:
 		return false

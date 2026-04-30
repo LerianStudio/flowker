@@ -15,10 +15,10 @@ import (
 	"sync"
 	"time"
 
-	libCommons "github.com/LerianStudio/lib-commons/v4/commons"
-	libLog "github.com/LerianStudio/lib-commons/v4/commons/log"
-	libOtel "github.com/LerianStudio/lib-commons/v4/commons/opentelemetry"
-	libSSRF "github.com/LerianStudio/lib-commons/v4/commons/security/ssrf"
+	libCommons "github.com/LerianStudio/lib-commons/v5/commons"
+	libLog "github.com/LerianStudio/lib-commons/v5/commons/log"
+	libOtel "github.com/LerianStudio/lib-commons/v5/commons/opentelemetry"
+	libSSRF "github.com/LerianStudio/lib-commons/v5/commons/security/ssrf"
 
 	"github.com/LerianStudio/flowker/pkg/constant"
 	"github.com/LerianStudio/flowker/pkg/model"

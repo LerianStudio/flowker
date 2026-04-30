@@ -7,7 +7,7 @@ package model
 import (
 	"time"
 
-	libSecurity "github.com/LerianStudio/lib-commons/v4/commons/security"
+	libSecurity "github.com/LerianStudio/lib-commons/v5/commons/security"
 	"github.com/google/uuid"
 )
 

@@ -818,24 +818,37 @@ definitions:
       valid:
         type: boolean
     type: object
-  internal_adapters_http_in_health.CheckResult:
+  internal_adapters_http_in_readyz.DependencyCheck:
     properties:
-      message:
+      breaker_state:
+        description: when dep is breaker-wrapped
+        type: string
+      error:
+        description: when status is down or degraded
+        type: string
+      latency_ms:
+        description: when status is up or degraded
+        type: integer
+      reason:
+        description: when status is skipped or n/a
         type: string
       status:
+        description: up/down/degraded/skipped/n/a (closed set)
         type: string
+      tls:
+        description: when dependency supports TLS
+        type: boolean
     type: object
-  internal_adapters_http_in_health.HealthResponse:
+  internal_adapters_http_in_readyz.Response:
     properties:
       checks:
         additionalProperties:
-          $ref: '#/definitions/internal_adapters_http_in_health.CheckResult'
+          $ref: '#/definitions/internal_adapters_http_in_readyz.DependencyCheck'
         type: object
+      deployment_mode:
+        type: string
       status:
-        type: string
-      timestamp:
-        type: string
-      uptime:
+        description: '"healthy" or "unhealthy"'
         type: string
       version:
         type: string
@@ -848,50 +861,22 @@ info:
   title: Flowker API
   version: 1.0.0
 paths:
-  /health:
+  /readyz:
     get:
-      description: Returns detailed health information including uptime and version
+      consumes:
+      - application/json
+      description: Returns dependency health status following canonical contract
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Service is healthy - all dependencies up/skipped/n-a
           schema:
-            $ref: '#/definitions/internal_adapters_http_in_health.HealthResponse'
+            $ref: '#/definitions/internal_adapters_http_in_readyz.Response'
         "503":
-          description: Service Unavailable
+          description: Service is unhealthy - one or more dependencies down/degraded
           schema:
-            $ref: '#/definitions/internal_adapters_http_in_health.HealthResponse'
-      summary: Combined health check
-      tags:
-      - Health
-  /health/live:
-    get:
-      description: Returns 200 OK if the application process is running
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/internal_adapters_http_in_health.HealthResponse'
-      summary: Kubernetes liveness probe
-      tags:
-      - Health
-  /health/ready:
-    get:
-      description: Returns 200 OK if the application is ready to serve traffic
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/internal_adapters_http_in_health.HealthResponse'
-        "503":
-          description: Service Unavailable
-          schema:
-            $ref: '#/definitions/internal_adapters_http_in_health.HealthResponse'
+            $ref: '#/definitions/internal_adapters_http_in_readyz.Response'
       summary: Kubernetes readiness probe
       tags:
       - Health

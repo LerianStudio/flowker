@@ -5,8 +5,8 @@
 package bootstrap
 
 import (
-	libCommons "github.com/LerianStudio/lib-commons/v4/commons"
-	libLog "github.com/LerianStudio/lib-commons/v4/commons/log"
+	libCommons "github.com/LerianStudio/lib-commons/v5/commons"
+	libLog "github.com/LerianStudio/lib-commons/v5/commons/log"
 )
 
 // Service is the application glue where we put all top level components to be used.

@@ -15,9 +15,9 @@ import (
 	"github.com/LerianStudio/flowker/internal/services/query"
 	"github.com/LerianStudio/flowker/pkg/constant"
 	"github.com/LerianStudio/flowker/pkg/model"
-	libCommons "github.com/LerianStudio/lib-commons/v4/commons"
-	libLog "github.com/LerianStudio/lib-commons/v4/commons/log"
-	libHTTP "github.com/LerianStudio/lib-commons/v4/commons/net/http"
+	libCommons "github.com/LerianStudio/lib-commons/v5/commons"
+	libLog "github.com/LerianStudio/lib-commons/v5/commons/log"
+	libHTTP "github.com/LerianStudio/lib-commons/v5/commons/net/http"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )

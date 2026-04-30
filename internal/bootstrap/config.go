@@ -7,7 +7,9 @@ package bootstrap
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/LerianStudio/flowker/internal/adapters/http/in"
@@ -16,8 +18,10 @@ import (
 	httpdashboard "github.com/LerianStudio/flowker/internal/adapters/http/in/dashboard"
 	httpexecution "github.com/LerianStudio/flowker/internal/adapters/http/in/execution"
 	httpexecutorconfig "github.com/LerianStudio/flowker/internal/adapters/http/in/executor_configuration"
+	httphealth "github.com/LerianStudio/flowker/internal/adapters/http/in/health"
 	httpMiddleware "github.com/LerianStudio/flowker/internal/adapters/http/in/middleware"
 	httpproviderconfig "github.com/LerianStudio/flowker/internal/adapters/http/in/provider_configuration"
+	"github.com/LerianStudio/flowker/internal/adapters/http/in/readyz"
 	httpwebhook "github.com/LerianStudio/flowker/internal/adapters/http/in/webhook"
 	httpworkflow "github.com/LerianStudio/flowker/internal/adapters/http/in/workflow"
 	mongodashboard "github.com/LerianStudio/flowker/internal/adapters/mongodb/dashboard"
@@ -40,10 +44,10 @@ import (
 	"github.com/LerianStudio/flowker/pkg/webhook"
 
 	authMiddleware "github.com/LerianStudio/lib-auth/v2/auth/middleware"
-	libCommons "github.com/LerianStudio/lib-commons/v4/commons"
-	libLog "github.com/LerianStudio/lib-commons/v4/commons/log"
-	libOtel "github.com/LerianStudio/lib-commons/v4/commons/opentelemetry"
-	libZap "github.com/LerianStudio/lib-commons/v4/commons/zap"
+	libCommons "github.com/LerianStudio/lib-commons/v5/commons"
+	libLog "github.com/LerianStudio/lib-commons/v5/commons/log"
+	libOtel "github.com/LerianStudio/lib-commons/v5/commons/opentelemetry"
+	libZap "github.com/LerianStudio/lib-commons/v5/commons/zap"
 )
 
 // Config is the top level configuration struct for the entire application.
@@ -57,6 +61,8 @@ type Config struct {
 	OtelDeploymentEnv       string `env:"OTEL_RESOURCE_DEPLOYMENT_ENVIRONMENT"`
 	OtelColExporterEndpoint string `env:"OTEL_EXPORTER_OTLP_ENDPOINT"`
 	EnableTelemetry         bool   `env:"ENABLE_TELEMETRY"`
+	// Deployment mode: saas (TLS mandatory), byoc (TLS recommended), local (TLS optional)
+	DeploymentMode string `env:"DEPLOYMENT_MODE"`
 	// MongoDB configuration
 	MongoURI       string `env:"MONGO_URI"`
 	MongoDBName    string `env:"MONGO_DB_NAME"`
@@ -86,6 +92,12 @@ type Config struct {
 // InitServers initiate http server.
 // Returns an error if any configuration or initialization step fails.
 func InitServers() (*Service, error) {
+	// Wire handler function variables to avoid import cycles.
+	// These functions allow health and readyz handlers to access bootstrap state
+	// without creating circular dependencies.
+	httphealth.SelfProbeOKFunc = SelfProbeOK
+	readyz.IsDrainingFunc = IsDraining
+
 	cfg := &Config{}
 
 	if err := libCommons.SetConfigFromEnvVars(cfg); err != nil {
@@ -133,6 +145,22 @@ func InitServers() (*Service, error) {
 		return nil, fmt.Errorf("failed to initialize telemetry: %w", err)
 	}
 
+	// Initialize readyz metrics after telemetry is available.
+	// Non-fatal: service continues without metrics if initialization fails.
+	if err := readyz.InitMetrics(); err != nil {
+		logger.Log(ctx, libLog.LevelWarn, "Failed to initialize readyz metrics", libLog.Any("error.message", err.Error()))
+	}
+
+	// Validate TLS for SaaS mode - MUST be called BEFORE any database connection opens.
+	// This is a hard-fail at startup: in DEPLOYMENT_MODE=saas, all database connections
+	// must use TLS. The service refuses to start without TLS in SaaS mode.
+	if err := ValidateSaaSTLS(TLSConfig{
+		MongoURI:    cfg.MongoURI,
+		PostgresDSN: buildAuditDSN(),
+	}); err != nil {
+		return nil, fmt.Errorf("TLS enforcement failed: %w", err)
+	}
+
 	// Initialize MongoDB connection manager
 	dbManager := NewDatabaseManagerWithConfig(&MongoConfig{
 		URI:       cfg.MongoURI,
@@ -175,13 +203,46 @@ func InitServers() (*Service, error) {
 		return nil, fmt.Errorf("AUDIT_DB_HOST is required: audit trail is mandatory for compliance")
 	}
 
-	auditHandler, auditWriter, err := initAuditComponents(logger)
+	auditHandler, auditWriter, auditDBManager, err := initAuditComponents(logger)
 	if err != nil {
 		logger.Log(ctx, libLog.LevelError, "Failed to initialize audit components", libLog.Any("error.message", err.Error()))
 		return nil, err
 	}
 
 	logger.Log(ctx, libLog.LevelInfo, "Audit trail components initialized successfully")
+
+	// Initialize readyz handler with both database checkers
+	// MongoDB checker
+	mongoChecker := readyz.NewMongoDBChecker(dbManager, dbManager)
+	// PostgreSQL checker (audit database)
+	postgresChecker := readyz.NewPostgreSQLChecker(auditDBManager, auditDBManager)
+
+	readyzHandler := readyz.NewHandler(
+		readyz.WithChecker(mongoChecker),
+		readyz.WithChecker(postgresChecker),
+	)
+
+	logger.Log(ctx, libLog.LevelInfo, "Readyz handler initialized with MongoDB and PostgreSQL checkers")
+
+	// Run startup self-probe to emit initial selfprobe_result gauge metrics.
+	// This records the health state of each dependency at service startup.
+	// Also gates /health endpoint - returns 503 until all deps are healthy.
+	LogSelfProbeStart(logger)
+
+	results := readyzHandler.RunSelfProbe(ctx)
+	allHealthy := true
+
+	for _, r := range results {
+		LogSelfProbeResult(logger, SelfProbeResult{Name: r.Name, Status: r.Status, Error: r.Err})
+
+		// Status vocabulary: up/skipped/n/a are healthy; down/degraded are unhealthy
+		if r.Status != "up" && r.Status != "skipped" && r.Status != "n/a" {
+			allHealthy = false
+		}
+	}
+
+	LogSelfProbeComplete(logger, allHealthy)
+	SetSelfProbeOK(allHealthy)
 
 	// Initialize provider configuration components
 	providerConfigHandler, providerConfigRepo, err := initProviderConfigComponents(dbManager, executorCatalog, auditWriter, logger)
@@ -259,7 +320,7 @@ func InitServers() (*Service, error) {
 		return nil, fmt.Errorf("failed to create auth guard: plugin auth is enabled but auth client is unavailable")
 	}
 
-	httpApp, err := in.NewRoutes(logger, telemetry, swaggerCfg, dbManager, routeCfg, workflowHandler, catalogHandler, executorConfigHandler, providerConfigHandler, executionHandler, dashboardHandler, auditHandler, webhookHandler, authGuard)
+	httpApp, err := in.NewRoutes(logger, telemetry, swaggerCfg, dbManager, readyzHandler, routeCfg, workflowHandler, catalogHandler, executorConfigHandler, providerConfigHandler, executionHandler, dashboardHandler, auditHandler, webhookHandler, authGuard)
 	if err != nil {
 		logger.Log(ctx, libLog.LevelError, "Failed to create HTTP routes", libLog.Any("error.message", err.Error()))
 		return nil, err
@@ -739,9 +800,10 @@ type providerConfigListerAdapter struct {
 // initAuditComponents creates all audit-related repositories, queries, services and handlers.
 // It creates its own AuditDatabaseManager, connects to PostgreSQL, and sets up the full
 // audit read pipeline (queries + service facade + HTTP handler).
+// Returns the handler, writer, and the database manager (needed for readyz health checks).
 func initAuditComponents(
 	logger libLog.Logger,
-) (*httpaudit.Handler, command.AuditWriter, error) {
+) (*httpaudit.Handler, command.AuditWriter, *AuditDatabaseManager, error) {
 	ctx := context.Background()
 
 	// Create and connect audit database
@@ -752,57 +814,57 @@ func initAuditComponents(
 
 	if err := auditDBManager.Connect(connectCtx); err != nil {
 		logger.Log(ctx, libLog.LevelError, "Failed to connect to audit database", libLog.Any("error.message", err.Error()))
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// Create PostgreSQL audit repository
 	auditRepo, err := pgaudit.NewPostgreSQLRepository(auditDBManager.GetPool())
 	if err != nil {
 		logger.Log(ctx, libLog.LevelError, "Failed to create audit repository", libLog.Any("error.message", err.Error()))
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// Create audit writer command (used by all command handlers for mandatory audit trail)
 	auditWriter, err := command.NewRecordAuditEventCommand(auditRepo)
 	if err != nil {
 		logger.Log(ctx, libLog.LevelError, "Failed to create RecordAuditEventCommand", libLog.Any("error.message", err.Error()))
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// Create query services
 	searchQuery, err := query.NewSearchAuditLogsQuery(auditRepo)
 	if err != nil {
 		logger.Log(ctx, libLog.LevelError, "Failed to create SearchAuditLogsQuery", libLog.Any("error.message", err.Error()))
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	getByIDQuery, err := query.NewGetAuditEntryByIDQuery(auditRepo)
 	if err != nil {
 		logger.Log(ctx, libLog.LevelError, "Failed to create GetAuditEntryByIDQuery", libLog.Any("error.message", err.Error()))
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	verifyHashQuery, err := query.NewVerifyAuditHashChainQuery(auditRepo)
 	if err != nil {
 		logger.Log(ctx, libLog.LevelError, "Failed to create VerifyAuditHashChainQuery", libLog.Any("error.message", err.Error()))
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// Create audit service facade
 	auditSvc, err := services.NewAuditService(searchQuery, getByIDQuery, verifyHashQuery)
 	if err != nil {
 		logger.Log(ctx, libLog.LevelError, "Failed to create AuditService", libLog.Any("error.message", err.Error()))
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// Create HTTP handler
 	auditHandler, err := httpaudit.NewHandler(auditSvc)
 	if err != nil {
 		logger.Log(ctx, libLog.LevelError, "Failed to create audit handler", libLog.Any("error.message", err.Error()))
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return auditHandler, auditWriter, nil
+	return auditHandler, auditWriter, auditDBManager, nil
 }
 
 // populateWebhookRegistry loads all active workflows from the database and
@@ -866,4 +928,46 @@ func (a *providerConfigListerAdapter) ListActiveByProvider(ctx context.Context, 
 	}
 
 	return result.Items, nil
+}
+
+// buildAuditDSN constructs the audit database DSN from environment variables.
+// Used by ValidateSaaSTLS to check TLS configuration before any connection is opened.
+// Returns empty string if AUDIT_DB_HOST is not configured (dependency not used).
+//
+// Uses url.URL to properly escape special characters in credentials (e.g., @, /, :).
+// Handles IPv6 literal hosts by bracketing them (e.g., [::1]:5432).
+func buildAuditDSN() string {
+	host := getEnvOrDefault("AUDIT_DB_HOST", "")
+	if host == "" {
+		return ""
+	}
+
+	port := getEnvOrDefault("AUDIT_DB_PORT", "5432")
+
+	// Build DSN using url.URL for proper encoding of special characters in credentials
+	u := &url.URL{
+		Scheme: "postgres",
+		User: url.UserPassword(
+			getEnvOrDefault("AUDIT_DB_USER", "flowker_audit"),
+			getEnvOrDefault("AUDIT_DB_PASSWORD", "flowker_audit"),
+		),
+		Host: formatHostPort(host, port),
+		Path: "/" + getEnvOrDefault("AUDIT_DB_NAME", "flowker_audit"),
+		RawQuery: url.Values{
+			"sslmode": {getEnvOrDefault("AUDIT_DB_SSL_MODE", "disable")},
+		}.Encode(),
+	}
+
+	return u.String()
+}
+
+// formatHostPort formats a host and port for use in a URL.
+// IPv6 literal addresses are bracketed (e.g., [::1]:5432).
+func formatHostPort(host, port string) string {
+	// Check if host is an IPv6 literal (contains colon but not already bracketed)
+	if strings.Contains(host, ":") && !strings.HasPrefix(host, "[") {
+		return fmt.Sprintf("[%s]:%s", host, port)
+	}
+
+	return fmt.Sprintf("%s:%s", host, port)
 }

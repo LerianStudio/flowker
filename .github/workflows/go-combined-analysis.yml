@@ -25,11 +25,11 @@ on:
 jobs:
   go-analysis:
     name: Go Analysis
-    uses: LerianStudio/github-actions-shared-workflows/.github/workflows/go-pr-analysis.yml@v1.26.1
+    uses: LerianStudio/github-actions-shared-workflows/.github/workflows/go-pr-analysis.yml@v1.26.3
     with:
       runner_type: "blacksmith-4vcpu-ubuntu-2404"
       app_name_prefix: "flowker"
-      go_version: "1.25.8"
+      go_version: "1.25.9"
       golangci_lint_version: "v2.7.2"
       golangci_lint_args: "--timeout=5m"
       coverage_threshold: 85

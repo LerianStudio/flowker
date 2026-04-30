@@ -13,8 +13,8 @@ import (
 	"github.com/LerianStudio/flowker/pkg/constant"
 	"github.com/LerianStudio/flowker/pkg/executor"
 	"github.com/LerianStudio/flowker/pkg/model"
-	libCommons "github.com/LerianStudio/lib-commons/v4/commons"
-	libHTTP "github.com/LerianStudio/lib-commons/v4/commons/net/http"
+	libCommons "github.com/LerianStudio/lib-commons/v5/commons"
+	libHTTP "github.com/LerianStudio/lib-commons/v5/commons/net/http"
 	"github.com/gofiber/fiber/v2"
 )
 

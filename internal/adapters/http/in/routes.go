@@ -16,11 +16,12 @@ import (
 	"github.com/LerianStudio/flowker/internal/adapters/http/in/health"
 	"github.com/LerianStudio/flowker/internal/adapters/http/in/middleware"
 	providerconfiguration "github.com/LerianStudio/flowker/internal/adapters/http/in/provider_configuration"
+	"github.com/LerianStudio/flowker/internal/adapters/http/in/readyz"
 	"github.com/LerianStudio/flowker/internal/adapters/http/in/webhook"
 	"github.com/LerianStudio/flowker/internal/adapters/http/in/workflow"
-	libLog "github.com/LerianStudio/lib-commons/v4/commons/log"
-	libHTTP "github.com/LerianStudio/lib-commons/v4/commons/net/http"
-	libOtel "github.com/LerianStudio/lib-commons/v4/commons/opentelemetry"
+	libLog "github.com/LerianStudio/lib-commons/v5/commons/log"
+	libHTTP "github.com/LerianStudio/lib-commons/v5/commons/net/http"
+	libOtel "github.com/LerianStudio/lib-commons/v5/commons/opentelemetry"
 	"github.com/gofiber/contrib/otelfiber/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -37,11 +38,13 @@ type RouteConfig struct {
 
 // NewRoutes creates the Fiber application with all routes configured
 // dbChecker should implement health.DatabaseChecker interface (e.g., bootstrap.DatabaseManager)
+// readyzHandler is the canonical /readyz endpoint handler (must be mounted BEFORE auth middleware)
 func NewRoutes(
 	lg libLog.Logger,
 	tl *libOtel.Telemetry,
 	swaggerCfg SwaggerConfig,
 	dbChecker health.DatabaseChecker,
+	readyzHandler *readyz.Handler,
 	routeCfg *RouteConfig,
 	workflowHandler *workflow.Handler,
 	catalogHandler *catalog.Handler,
@@ -146,9 +149,13 @@ func NewRoutes(
 		return nil, fmt.Errorf("failed to create health handler: %w", err)
 	}
 
-	f.Get("/health", healthHandler.Health)          // Combined health (uptime, version, checks)
-	f.Get("/health/live", healthHandler.Liveness)   // Kubernetes liveness probe
-	f.Get("/health/ready", healthHandler.Readiness) // Kubernetes readiness probe
+	// /health - Combined health check (uptime, version, checks)
+	// Gates on selfProbeOK: returns 503 if startup self-probe did not pass.
+	f.Get("/health", healthHandler.Health)
+
+	// /readyz - Kubernetes readiness probe (canonical contract)
+	// MUST be registered BEFORE auth middleware per Ring Standards
+	f.Get("/readyz", readyzHandler.Readyz)
 
 	// Version
 	f.Get("/version", libHTTP.Version)
