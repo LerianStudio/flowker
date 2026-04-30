@@ -1,5 +1,19 @@
 # Flowker Changelog
 
+## [1.0.2](https://github.com/LerianStudio/flowker/releases/tag/v1.0.2)
+
+- Implemented canonical /readyz endpoint for health checks.
+- Upgraded lib-commons to v5 and lib-auth to v2.7.0.
+- Triggered gitops update on all tags.
+- Allowed "ci" scope in PR titles.
+- Removed trailing blank lines in Docker configuration.
+
+Contributors: @bedatty, @lerian-studio, @lffranca
+
+[Compare changes](https://github.com/LerianStudio/flowker/compare/v1.0.1...v1.0.2)
+
+---
+
 ## [1.0.1](https://github.com/LerianStudio/flowker/releases/tag/v1.0.1)
 
 - Improvements:
