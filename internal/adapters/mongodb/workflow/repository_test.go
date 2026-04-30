@@ -208,22 +208,4 @@ func TestMongoDBRepository_SingleTenantMode_BackwardCompatibility(t *testing.T) 
 // Helper function tests
 // =============================================================================
 
-func TestMapSortField(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"createdAt", "createdAt"},
-		{"updatedAt", "updatedAt"},
-		{"name", "name"},
-		{"unknown", "createdAt"}, // defaults to createdAt
-		{"", "createdAt"},        // empty defaults to createdAt
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			result := mapSortField(tt.input)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
+// TestMapSortField is defined in pagination_test.go

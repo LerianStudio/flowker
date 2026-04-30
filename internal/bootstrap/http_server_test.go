@@ -43,7 +43,7 @@ func TestNewHTTPServer(t *testing.T) {
 		},
 	}
 
-	server := NewHTTPServer(cfg, app, mockLogger, telemetry)
+	server := NewHTTPServer(cfg, app, mockLogger, telemetry, nil)
 
 	require.NotNil(t, server)
 	assert.Equal(t, ":8080", server.ServerAddress())
@@ -89,7 +89,7 @@ func TestHTTPServer_ServerAddress(t *testing.T) {
 				},
 			}
 
-			server := NewHTTPServer(cfg, app, mockLogger, telemetry)
+			server := NewHTTPServer(cfg, app, mockLogger, telemetry, nil)
 			assert.Equal(t, tt.expected, server.ServerAddress())
 		})
 	}
@@ -112,7 +112,7 @@ func TestHTTPServer_Struct(t *testing.T) {
 		},
 	}
 
-	server := NewHTTPServer(cfg, app, mockLogger, telemetry)
+	server := NewHTTPServer(cfg, app, mockLogger, telemetry, nil)
 
 	require.NotNil(t, server)
 	assert.NotNil(t, server.app)
