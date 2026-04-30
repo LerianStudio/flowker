@@ -16,6 +16,7 @@ import (
 	"github.com/LerianStudio/flowker/pkg/constant"
 	"github.com/LerianStudio/flowker/pkg/model"
 	nethttp "github.com/LerianStudio/flowker/pkg/net/http"
+	tmcore "github.com/LerianStudio/lib-commons/v5/commons/tenant-manager/core"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -28,15 +29,36 @@ const (
 )
 
 // MongoDBRepository implements command.ExecutionRepository using MongoDB.
+// Supports both single-tenant (fallback) and multi-tenant (context-based) modes.
 type MongoDBRepository struct {
-	collection *mongo.Collection
+	fallbackDB *mongo.Database // Fallback for single-tenant mode
 }
 
 // NewMongoDBRepository creates a new MongoDB repository for workflow executions.
+// The provided database is used as fallback in single-tenant mode.
+// In multi-tenant mode, the database is resolved from context.
 func NewMongoDBRepository(db *mongo.Database) *MongoDBRepository {
 	return &MongoDBRepository{
-		collection: db.Collection(CollectionName),
+		fallbackDB: db,
 	}
+}
+
+// getCollection returns the tenant-specific collection or fallback.
+// In multi-tenant mode, it extracts the database from context.
+// In single-tenant mode, it uses the fallback database.
+func (r *MongoDBRepository) getCollection(ctx context.Context) (*mongo.Collection, error) {
+	// Try to get tenant-specific database from context (multi-tenant mode)
+	db := tmcore.GetMBContext(ctx)
+	if db != nil {
+		return db.Collection(CollectionName), nil
+	}
+
+	// Single-tenant mode: use fallback
+	if r.fallbackDB == nil {
+		return nil, errors.New("mongodb connection not available")
+	}
+
+	return r.fallbackDB.Collection(CollectionName), nil
 }
 
 // Verify MongoDBRepository implements command.ExecutionRepository
@@ -44,9 +66,14 @@ var _ command.ExecutionRepository = (*MongoDBRepository)(nil)
 
 // Create persists a new workflow execution to MongoDB.
 func (r *MongoDBRepository) Create(ctx context.Context, execution *model.WorkflowExecution) error {
+	collection, err := r.getCollection(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get collection: %w", err)
+	}
+
 	mongoModel := NewMongoDBModelFromEntity(execution)
 
-	_, err := r.collection.InsertOne(ctx, mongoModel)
+	_, err = collection.InsertOne(ctx, mongoModel)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
 			return constant.ErrExecutionDuplicate
@@ -60,11 +87,16 @@ func (r *MongoDBRepository) Create(ctx context.Context, execution *model.Workflo
 
 // FindByID retrieves a workflow execution by its ID.
 func (r *MongoDBRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.WorkflowExecution, error) {
+	collection, err := r.getCollection(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get collection: %w", err)
+	}
+
 	filter := bson.M{"executionId": id.String()}
 
 	var mongoModel MongoDBModel
 
-	err := r.collection.FindOne(ctx, filter).Decode(&mongoModel)
+	err = collection.FindOne(ctx, filter).Decode(&mongoModel)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, constant.ErrExecutionNotFound
@@ -83,11 +115,16 @@ func (r *MongoDBRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.
 
 // FindByIdempotencyKey retrieves a workflow execution by its idempotency key.
 func (r *MongoDBRepository) FindByIdempotencyKey(ctx context.Context, key string) (*model.WorkflowExecution, error) {
+	collection, err := r.getCollection(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get collection: %w", err)
+	}
+
 	filter := bson.M{"idempotencyKey": key}
 
 	var mongoModel MongoDBModel
 
-	err := r.collection.FindOne(ctx, filter).Decode(&mongoModel)
+	err = collection.FindOne(ctx, filter).Decode(&mongoModel)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, constant.ErrExecutionNotFound
@@ -107,6 +144,11 @@ func (r *MongoDBRepository) FindByIdempotencyKey(ctx context.Context, key string
 // Update persists changes to an existing workflow execution.
 // expectedStatus is included in the filter to prevent race conditions (atomic check-and-set).
 func (r *MongoDBRepository) Update(ctx context.Context, execution *model.WorkflowExecution, expectedStatus model.ExecutionStatus) error {
+	collection, err := r.getCollection(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get collection: %w", err)
+	}
+
 	filter := bson.M{"executionId": execution.ExecutionID().String()}
 	if expectedStatus != "" {
 		filter["status"] = string(expectedStatus)
@@ -125,7 +167,7 @@ func (r *MongoDBRepository) Update(ctx context.Context, execution *model.Workflo
 		},
 	}
 
-	result, err := r.collection.UpdateOne(ctx, filter, update)
+	result, err := collection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return fmt.Errorf("failed to update execution: %w", err)
 	}
@@ -143,6 +185,11 @@ func (r *MongoDBRepository) Update(ctx context.Context, execution *model.Workflo
 
 // FindIncomplete retrieves all executions with status pending or running.
 func (r *MongoDBRepository) FindIncomplete(ctx context.Context) ([]*model.WorkflowExecution, error) {
+	collection, err := r.getCollection(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get collection: %w", err)
+	}
+
 	filter := bson.M{
 		"status": bson.M{
 			"$in": []string{
@@ -152,14 +199,14 @@ func (r *MongoDBRepository) FindIncomplete(ctx context.Context) ([]*model.Workfl
 		},
 	}
 
-	cursor, err := r.collection.Find(ctx, filter)
+	mongoCursor, err := collection.Find(ctx, filter)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find incomplete executions: %w", err)
 	}
-	defer cursor.Close(ctx)
+	defer mongoCursor.Close(ctx)
 
 	var mongoModels []MongoDBModel
-	if err := cursor.All(ctx, &mongoModels); err != nil {
+	if err := mongoCursor.All(ctx, &mongoModels); err != nil {
 		return nil, fmt.Errorf("failed to decode incomplete executions: %w", err)
 	}
 
@@ -179,6 +226,11 @@ func (r *MongoDBRepository) FindIncomplete(ctx context.Context) ([]*model.Workfl
 
 // List retrieves executions with filtering and cursor pagination.
 func (r *MongoDBRepository) List(ctx context.Context, filter command.ExecutionListFilter) (*command.ExecutionListResult, error) {
+	collection, err := r.getCollection(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get collection: %w", err)
+	}
+
 	mongoFilter := bson.M{}
 
 	if filter.WorkflowID != nil {
@@ -193,8 +245,6 @@ func (r *MongoDBRepository) List(ctx context.Context, filter command.ExecutionLi
 	sortOrder := filter.SortOrder
 
 	if filter.Cursor != "" {
-		var err error
-
 		sortBy, sortOrder, err = r.applyCursorFilter(filter.Cursor, sortBy, sortOrder, mongoFilter)
 		if err != nil {
 			return nil, err
@@ -209,14 +259,14 @@ func (r *MongoDBRepository) List(ctx context.Context, filter command.ExecutionLi
 		SetSort(buildSortOpts(sortBy, sortOrder)).
 		SetLimit(int64(limit + 1))
 
-	cursor, err := r.collection.Find(ctx, mongoFilter, findOptions)
+	mongoCursor, err := collection.Find(ctx, mongoFilter, findOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list executions: %w", err)
 	}
-	defer cursor.Close(ctx)
+	defer mongoCursor.Close(ctx)
 
 	var mongoModels []MongoDBModel
-	if err := cursor.All(ctx, &mongoModels); err != nil {
+	if err := mongoCursor.All(ctx, &mongoModels); err != nil {
 		return nil, fmt.Errorf("failed to decode executions: %w", err)
 	}
 

@@ -4,4 +4,11 @@
 
 package constant
 
-const ApplicationName = "flowker"
+const (
+	// ApplicationName is the name of the Flowker service.
+	ApplicationName = "flowker"
+
+	// ModuleManager is the single module name for dispatch layer registration.
+	// Flowker is a single-module service with MongoDB (primary) + PostgreSQL (audit).
+	ModuleManager = "manager"
+)

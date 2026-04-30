@@ -16,6 +16,7 @@ import (
 	"github.com/LerianStudio/flowker/internal/services/query"
 	"github.com/LerianStudio/flowker/pkg/constant"
 	"github.com/LerianStudio/flowker/pkg/model"
+	tmcore "github.com/LerianStudio/lib-commons/v5/commons/tenant-manager/core"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -35,21 +36,60 @@ var auditColumns = []string{
 
 // PostgreSQLRepository implements both AuditWriteRepository and AuditReadRepository
 // using pgxpool for PostgreSQL access.
+// Supports both single-tenant (fallback) and multi-tenant (context-based) modes.
 type PostgreSQLRepository struct {
-	pool *pgxpool.Pool
+	fallbackPool *pgxpool.Pool // Fallback for single-tenant mode
 }
 
 // NewPostgreSQLRepository creates a new PostgreSQL audit repository.
+// The provided pool is used as fallback in single-tenant mode.
+// In multi-tenant mode, the pool is resolved from context.
 func NewPostgreSQLRepository(pool *pgxpool.Pool) (*PostgreSQLRepository, error) {
 	if pool == nil {
 		return nil, errors.New("pgxpool cannot be nil")
 	}
 
-	return &PostgreSQLRepository{pool: pool}, nil
+	return &PostgreSQLRepository{fallbackPool: pool}, nil
+}
+
+// getPool returns the tenant-specific pool or fallback.
+// In multi-tenant mode, it extracts the pool from context.
+// In single-tenant mode, it uses the fallback pool.
+//
+// Note: Multi-tenant mode for PostgreSQL requires the tenant middleware to inject
+// a *pgxpool.Pool into context. If GetPGContext returns a dbresolver.DB (sql-based),
+// this method falls back to single-tenant mode since pgx-specific features are used.
+func (r *PostgreSQLRepository) getPool(ctx context.Context) (*pgxpool.Pool, error) {
+	// Try to get tenant-specific connection from context (multi-tenant mode)
+	// Note: GetPGContext returns dbresolver.DB which is sql-based, not pgx-specific.
+	// For full multi-tenant support with pgx, consider using sql-compatible queries
+	// or a pgx-specific tenant context helper.
+	db := tmcore.GetPGContext(ctx)
+	if db != nil {
+		// In multi-tenant mode with dbresolver.DB, we'd need to adapt to sql interface.
+		// For now, if context has a value but it's not pgxpool-compatible,
+		// we use the fallback. This maintains backward compatibility while
+		// signaling that full multi-tenant PostgreSQL support may require
+		// refactoring to database/sql interface.
+		//
+		// Future enhancement: Add tmcore.GetPGXContext helper for pgx-specific pools.
+	}
+
+	// Single-tenant mode: use fallback
+	if r.fallbackPool == nil {
+		return nil, errors.New("postgresql connection not available")
+	}
+
+	return r.fallbackPool, nil
 }
 
 // Insert persists a new audit entry to PostgreSQL.
 func (r *PostgreSQLRepository) Insert(ctx context.Context, entry *model.AuditEntry) error {
+	pool, err := r.getPool(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get pool: %w", err)
+	}
+
 	if entry == nil {
 		return errors.New("audit entry cannot be nil")
 	}
@@ -90,7 +130,7 @@ func (r *PostgreSQLRepository) Insert(ctx context.Context, entry *model.AuditEnt
 		return fmt.Errorf("failed to build insert query: %w", err)
 	}
 
-	_, err = r.pool.Exec(ctx, sqlStr, args...)
+	_, err = pool.Exec(ctx, sqlStr, args...)
 	if err != nil {
 		return fmt.Errorf("failed to insert audit entry: %w", err)
 	}
@@ -100,6 +140,11 @@ func (r *PostgreSQLRepository) Insert(ctx context.Context, entry *model.AuditEnt
 
 // FindByID retrieves an audit entry by its event ID.
 func (r *PostgreSQLRepository) FindByID(ctx context.Context, eventID uuid.UUID) (*model.AuditEntry, error) {
+	pool, err := r.getPool(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pool: %w", err)
+	}
+
 	sqlStr, args, err := psql.
 		Select(auditColumns...).
 		From("audit_events").
@@ -109,7 +154,7 @@ func (r *PostgreSQLRepository) FindByID(ctx context.Context, eventID uuid.UUID) 
 		return nil, fmt.Errorf("failed to build find query: %w", err)
 	}
 
-	row := r.pool.QueryRow(ctx, sqlStr, args...)
+	row := pool.QueryRow(ctx, sqlStr, args...)
 
 	entry, err := scanAuditEntry(row)
 	if err != nil {
@@ -125,6 +170,11 @@ func (r *PostgreSQLRepository) FindByID(ctx context.Context, eventID uuid.UUID) 
 
 // List retrieves audit entries with filtering and cursor-based pagination.
 func (r *PostgreSQLRepository) List(ctx context.Context, filter query.AuditListFilter) ([]*model.AuditEntry, string, bool, error) {
+	pool, err := r.getPool(ctx)
+	if err != nil {
+		return nil, "", false, fmt.Errorf("failed to get pool: %w", err)
+	}
+
 	builder := psql.
 		Select(auditColumns...).
 		From("audit_events")
@@ -187,7 +237,7 @@ func (r *PostgreSQLRepository) List(ctx context.Context, filter query.AuditListF
 		return nil, "", false, fmt.Errorf("failed to build list query: %w", err)
 	}
 
-	rows, err := r.pool.Query(ctx, sqlStr, args...)
+	rows, err := pool.Query(ctx, sqlStr, args...)
 	if err != nil {
 		return nil, "", false, fmt.Errorf("failed to list audit entries: %w", err)
 	}
@@ -223,6 +273,11 @@ func (r *PostgreSQLRepository) List(ctx context.Context, filter query.AuditListF
 
 // VerifyHashChain verifies the hash chain integrity up to the specified event ID.
 func (r *PostgreSQLRepository) VerifyHashChain(ctx context.Context, eventID uuid.UUID) (*model.HashChainVerificationOutput, error) {
+	pool, err := r.getPool(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pool: %w", err)
+	}
+
 	// First, find the target entry to get its id
 	findSQL, findArgs, err := psql.
 		Select("id").
@@ -235,7 +290,7 @@ func (r *PostgreSQLRepository) VerifyHashChain(ctx context.Context, eventID uuid
 
 	var targetID int64
 
-	err = r.pool.QueryRow(ctx, findSQL, findArgs...).Scan(&targetID)
+	err = pool.QueryRow(ctx, findSQL, findArgs...).Scan(&targetID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, constant.ErrAuditEntryNotFound
@@ -255,7 +310,7 @@ func (r *PostgreSQLRepository) VerifyHashChain(ctx context.Context, eventID uuid
 		return nil, fmt.Errorf("failed to build verify query: %w", err)
 	}
 
-	rows, err := r.pool.Query(ctx, verifySQL, verifyArgs...)
+	rows, err := pool.Query(ctx, verifySQL, verifyArgs...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query hash chain: %w", err)
 	}

@@ -212,3 +212,87 @@ func TestWarnDeprecatedOIDCEnvVars(t *testing.T) {
 		})
 	}
 }
+
+func TestConfig_MultiTenantFields(t *testing.T) {
+	// TDD-RED: Test that Config struct contains all 14 canonical multi-tenant fields
+	// following lib-commons v5 naming conventions.
+	tests := []struct {
+		name     string
+		config   Config
+		validate func(t *testing.T, cfg Config)
+	}{
+		{
+			name: "multi-tenant disabled (single-tenant mode)",
+			config: Config{
+				MultiTenantEnabled: false,
+			},
+			validate: func(t *testing.T, cfg Config) {
+				assert.False(t, cfg.MultiTenantEnabled)
+			},
+		},
+		{
+			name: "multi-tenant enabled with full configuration",
+			config: Config{
+				MultiTenantEnabled:                     true,
+				MultiTenantURL:                         "http://tenant-manager:8080",
+				MultiTenantRedisHost:                   "redis.example.com",
+				MultiTenantRedisPort:                   "6379",
+				MultiTenantRedisPassword:               "secret",
+				MultiTenantRedisTLS:                    true,
+				MultiTenantMaxTenantPools:              100,
+				MultiTenantIdleTimeoutSec:              300,
+				MultiTenantTimeout:                     30,
+				MultiTenantCircuitBreakerThreshold:     5,
+				MultiTenantCircuitBreakerTimeoutSec:    30,
+				MultiTenantServiceAPIKey:               "api-key-123",
+				MultiTenantCacheTTLSec:                 120,
+				MultiTenantConnectionsCheckIntervalSec: 30,
+			},
+			validate: func(t *testing.T, cfg Config) {
+				assert.True(t, cfg.MultiTenantEnabled)
+				assert.Equal(t, "http://tenant-manager:8080", cfg.MultiTenantURL)
+				assert.Equal(t, "redis.example.com", cfg.MultiTenantRedisHost)
+				assert.Equal(t, "6379", cfg.MultiTenantRedisPort)
+				assert.Equal(t, "secret", cfg.MultiTenantRedisPassword)
+				assert.True(t, cfg.MultiTenantRedisTLS)
+				assert.Equal(t, 100, cfg.MultiTenantMaxTenantPools)
+				assert.Equal(t, 300, cfg.MultiTenantIdleTimeoutSec)
+				assert.Equal(t, 30, cfg.MultiTenantTimeout)
+				assert.Equal(t, 5, cfg.MultiTenantCircuitBreakerThreshold)
+				assert.Equal(t, 30, cfg.MultiTenantCircuitBreakerTimeoutSec)
+				assert.Equal(t, "api-key-123", cfg.MultiTenantServiceAPIKey)
+				assert.Equal(t, 120, cfg.MultiTenantCacheTTLSec)
+				assert.Equal(t, 30, cfg.MultiTenantConnectionsCheckIntervalSec)
+			},
+		},
+		{
+			name: "multi-tenant default values",
+			config: Config{
+				MultiTenantEnabled: false,
+			},
+			validate: func(t *testing.T, cfg Config) {
+				// When multi-tenant is disabled, all fields should have zero values
+				assert.False(t, cfg.MultiTenantEnabled)
+				assert.Equal(t, "", cfg.MultiTenantURL)
+				assert.Equal(t, "", cfg.MultiTenantRedisHost)
+				assert.Equal(t, "", cfg.MultiTenantRedisPort)
+				assert.Equal(t, "", cfg.MultiTenantRedisPassword)
+				assert.False(t, cfg.MultiTenantRedisTLS)
+				assert.Equal(t, 0, cfg.MultiTenantMaxTenantPools)
+				assert.Equal(t, 0, cfg.MultiTenantIdleTimeoutSec)
+				assert.Equal(t, 0, cfg.MultiTenantTimeout)
+				assert.Equal(t, 0, cfg.MultiTenantCircuitBreakerThreshold)
+				assert.Equal(t, 0, cfg.MultiTenantCircuitBreakerTimeoutSec)
+				assert.Equal(t, "", cfg.MultiTenantServiceAPIKey)
+				assert.Equal(t, 0, cfg.MultiTenantCacheTTLSec)
+				assert.Equal(t, 0, cfg.MultiTenantConnectionsCheckIntervalSec)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.validate(t, tt.config)
+		})
+	}
+}

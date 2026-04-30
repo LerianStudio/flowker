@@ -48,6 +48,7 @@ import (
 	libLog "github.com/LerianStudio/lib-commons/v5/commons/log"
 	libOtel "github.com/LerianStudio/lib-commons/v5/commons/opentelemetry"
 	libZap "github.com/LerianStudio/lib-commons/v5/commons/zap"
+	"github.com/gofiber/fiber/v2"
 )
 
 // Config is the top level configuration struct for the entire application.
@@ -87,6 +88,23 @@ type Config struct {
 	// Feature flags
 	SkipLibCommonsTelemetry bool `env:"SKIP_LIB_COMMONS_TELEMETRY"`
 	FaultInjectionEnabled   bool `env:"FAULT_INJECTION_ENABLED"`
+	// Multi-tenant configuration
+	// When MULTI_TENANT_ENABLED=true, database connections are resolved per-tenant via Tenant Manager.
+	// When MULTI_TENANT_ENABLED=false (default), single-tenant mode with static connections.
+	MultiTenantEnabled                     bool   `env:"MULTI_TENANT_ENABLED"`
+	MultiTenantURL                         string `env:"MULTI_TENANT_URL"`
+	MultiTenantRedisHost                   string `env:"MULTI_TENANT_REDIS_HOST"`
+	MultiTenantRedisPort                   string `env:"MULTI_TENANT_REDIS_PORT"`
+	MultiTenantRedisPassword               string `env:"MULTI_TENANT_REDIS_PASSWORD"`
+	MultiTenantRedisTLS                    bool   `env:"MULTI_TENANT_REDIS_TLS"`
+	MultiTenantMaxTenantPools              int    `env:"MULTI_TENANT_MAX_TENANT_POOLS"`
+	MultiTenantIdleTimeoutSec              int    `env:"MULTI_TENANT_IDLE_TIMEOUT_SEC"`
+	MultiTenantTimeout                     int    `env:"MULTI_TENANT_TIMEOUT"`
+	MultiTenantCircuitBreakerThreshold     int    `env:"MULTI_TENANT_CIRCUIT_BREAKER_THRESHOLD"`
+	MultiTenantCircuitBreakerTimeoutSec    int    `env:"MULTI_TENANT_CIRCUIT_BREAKER_TIMEOUT_SEC"`
+	MultiTenantServiceAPIKey               string `env:"MULTI_TENANT_SERVICE_API_KEY"`
+	MultiTenantCacheTTLSec                 int    `env:"MULTI_TENANT_CACHE_TTL_SEC"`
+	MultiTenantConnectionsCheckIntervalSec int    `env:"MULTI_TENANT_CONNECTIONS_CHECK_INTERVAL_SEC"`
 }
 
 // InitServers initiate http server.
@@ -116,6 +134,13 @@ func InitServers() (*Service, error) {
 	var logger libLog.Logger = zapLogger
 
 	ctx := context.Background()
+
+	// Log multi-tenant mode status
+	if cfg.MultiTenantEnabled {
+		logger.Log(ctx, libLog.LevelInfo, "Multi-tenant mode ENABLED")
+	} else {
+		logger.Log(ctx, libLog.LevelInfo, "Running in SINGLE-TENANT MODE")
+	}
 
 	// Validate API key configuration
 	if cfg.APIKeyEnabled && cfg.APIKey == "" {
@@ -149,6 +174,13 @@ func InitServers() (*Service, error) {
 	// Non-fatal: service continues without metrics if initialization fails.
 	if err := readyz.InitMetrics(); err != nil {
 		logger.Log(ctx, libLog.LevelWarn, "Failed to initialize readyz metrics", libLog.Any("error.message", err.Error()))
+	}
+
+	// Initialize multi-tenant metrics after telemetry is available.
+	// When MULTI_TENANT_ENABLED=false, this is a no-op (zero overhead).
+	// Non-fatal: service continues without metrics if initialization fails.
+	if err := InitMultiTenantMetrics(cfg.MultiTenantEnabled); err != nil {
+		logger.Log(ctx, libLog.LevelWarn, "Failed to initialize multi-tenant metrics", libLog.Any("error.message", err.Error()))
 	}
 
 	// Validate TLS for SaaS mode - MUST be called BEFORE any database connection opens.
@@ -320,17 +352,31 @@ func InitServers() (*Service, error) {
 		return nil, fmt.Errorf("failed to create auth guard: plugin auth is enabled but auth client is unavailable")
 	}
 
-	httpApp, err := in.NewRoutes(logger, telemetry, swaggerCfg, dbManager, readyzHandler, routeCfg, workflowHandler, catalogHandler, executorConfigHandler, providerConfigHandler, executionHandler, dashboardHandler, auditHandler, webhookHandler, authGuard)
+	// Initialize multi-tenant infrastructure (nil in single-tenant mode)
+	tenantInfra, err := NewTenantInfrastructure(ctx, cfg, logger)
+	if err != nil {
+		logger.Log(ctx, libLog.LevelError, "Failed to initialize multi-tenant infrastructure", libLog.Any("error.message", err.Error()))
+		return nil, err
+	}
+
+	// Extract tenant middleware handler (nil in single-tenant mode for passthrough)
+	var tenantMiddleware func(*fiber.Ctx) error
+	if tenantInfra != nil {
+		tenantMiddleware = tenantInfra.Middleware
+	}
+
+	httpApp, err := in.NewRoutes(logger, telemetry, swaggerCfg, dbManager, readyzHandler, routeCfg, workflowHandler, catalogHandler, executorConfigHandler, providerConfigHandler, executionHandler, dashboardHandler, auditHandler, webhookHandler, authGuard, tenantMiddleware)
 	if err != nil {
 		logger.Log(ctx, libLog.LevelError, "Failed to create HTTP routes", libLog.Any("error.message", err.Error()))
 		return nil, err
 	}
 
-	serverAPI := NewHTTPServer(cfg, httpApp, logger, telemetry)
+	serverAPI := NewHTTPServer(cfg, httpApp, logger, telemetry, tenantInfra)
 
 	return &Service{
-		HTTPServer: serverAPI,
-		Logger:     logger,
+		HTTPServer:  serverAPI,
+		Logger:      logger,
+		TenantInfra: tenantInfra,
 	}, nil
 }
 

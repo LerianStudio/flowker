@@ -29,7 +29,7 @@ Flowker is a workflow orchestration platform for financial validation. It enable
 4. **Access the API:**
    - API base URL: `http://localhost:4021`
    - Swagger UI: `http://localhost:4021/swagger/index.html`
-   - Liveness: `http://localhost:4021/health/live` · Readiness: `http://localhost:4021/health/ready`
+   - Health: `http://localhost:4021/health` · Readiness: `http://localhost:4021/readyz`
 
 Prefer a containerized stack? `make up` starts everything via `docker-compose.yml` (production-like).
 
@@ -161,7 +161,7 @@ pkg/
 - **Web framework**: Fiber v2.52.12
 - **Datastores**: MongoDB (replica set) for domain data · PostgreSQL for audit trail
 - **AuthN**: `lib-auth/v2` (Access Manager, OIDC/JWT) + API key middleware
-- **Observability**: OpenTelemetry (traces, metrics, logs via `lib-commons/v4`)
+- **Observability**: OpenTelemetry (traces, metrics, logs via `lib-commons/v5`)
 - **Testing**: `stretchr/testify`, `go.uber.org/mock`, Testcontainers for integration suites
 
 ## Documentation

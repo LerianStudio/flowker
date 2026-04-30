@@ -39,6 +39,7 @@ type RouteConfig struct {
 // NewRoutes creates the Fiber application with all routes configured
 // dbChecker should implement health.DatabaseChecker interface (e.g., bootstrap.DatabaseManager)
 // readyzHandler is the canonical /readyz endpoint handler (must be mounted BEFORE auth middleware)
+// tenantMiddleware extracts tenantId from JWT and resolves per-tenant database connections (nil in single-tenant mode)
 func NewRoutes(
 	lg libLog.Logger,
 	tl *libOtel.Telemetry,
@@ -55,6 +56,7 @@ func NewRoutes(
 	auditHandler *audit.Handler,
 	webhookHandler *webhook.Handler,
 	guard *middleware.AuthGuard,
+	tenantMiddleware fiber.Handler,
 ) (*fiber.App, error) {
 	f := fiber.New(fiber.Config{
 		DisableStartupMessage: true,
@@ -105,6 +107,14 @@ func NewRoutes(
 
 	// API v1 routes
 	v1 := f.Group("/v1")
+
+	// Multi-tenant middleware: extracts tenantId from JWT and resolves per-tenant database connections.
+	// This middleware MUST run AFTER auth validates the JWT token (auth is per-route via guard.Protect).
+	// The middleware parses the JWT to extract tenantId from claims (does NOT validate signature again).
+	// In single-tenant mode, tenantMiddleware is nil (passthrough, no tenant resolution).
+	if tenantMiddleware != nil {
+		v1.Use(tenantMiddleware)
+	}
 
 	// Webhook routes (API key auth + optional verify_token per webhook)
 	if webhookHandler != nil {

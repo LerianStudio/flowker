@@ -66,18 +66,18 @@ This document defines the specific standards for Flowker development, following 
 
 ## Core Dependency: lib-commons (MANDATORY)
 
-All Flowker code **MUST** use `lib-commons/v4` as the foundation library. This is the current major version in production; do not downgrade to v2 or v3.
+All Flowker code **MUST** use `lib-commons/v5` as the foundation library. This is the current major version in production; do not downgrade to v2 or v3.
 
-### Required Imports (lib-commons v4)
+### Required Imports (lib-commons v5)
 
 ```go
 import (
-    libCommons "github.com/LerianStudio/lib-commons/v4/commons"
-    libZap "github.com/LerianStudio/lib-commons/v4/commons/zap"                 // Logger initialization (bootstrap only)
-    libLog "github.com/LerianStudio/lib-commons/v4/commons/log"                 // Logger interface (services, routes, handlers)
-    libOtel "github.com/LerianStudio/lib-commons/v4/commons/opentelemetry"
-    libHTTP "github.com/LerianStudio/lib-commons/v4/commons/net/http"
-    libMongo "github.com/LerianStudio/lib-commons/v4/commons/mongo"
+    libCommons "github.com/LerianStudio/lib-commons/v5/commons"
+    libZap "github.com/LerianStudio/lib-commons/v5/commons/zap"                 // Logger initialization (bootstrap only)
+    libLog "github.com/LerianStudio/lib-commons/v5/commons/log"                 // Logger interface (services, routes, handlers)
+    libOtel "github.com/LerianStudio/lib-commons/v5/commons/opentelemetry"
+    libHTTP "github.com/LerianStudio/lib-commons/v5/commons/net/http"
+    libMongo "github.com/LerianStudio/lib-commons/v5/commons/mongo"
 )
 ```
 
@@ -102,7 +102,7 @@ import (
 
 | Library | Minimum Version | Purpose |
 |---------|-----------------|---------|
-| `lib-commons/v4` | v4.6.0-beta.7 | Core infrastructure |
+| `lib-commons/v5` | v5.1.0 | Core infrastructure |
 | `lib-auth/v2` | v2.x | Access Manager plugin authentication |
 | `fiber/v2` | v2.52.12 | HTTP framework |
 | `go.mongodb.org/mongo-driver` | v1.17.9 | MongoDB driver |
@@ -396,8 +396,8 @@ All services **MUST** integrate OpenTelemetry using lib-commons.
 
 ```go
 import (
-    libCommons "github.com/LerianStudio/lib-commons/v4/commons"
-    libOtel "github.com/LerianStudio/lib-commons/v4/commons/opentelemetry"
+    libCommons "github.com/LerianStudio/lib-commons/v5/commons"
+    libOtel "github.com/LerianStudio/lib-commons/v5/commons/opentelemetry"
     "go.opentelemetry.io/otel/trace" // OK: Only for trace.Span type
 )
 
@@ -516,7 +516,7 @@ libHTTP.WithError(c, err)
 
 ```go
 import (
-    libHTTP "github.com/LerianStudio/lib-commons/v4/commons/net/http"
+    libHTTP "github.com/LerianStudio/lib-commons/v5/commons/net/http"
     "github.com/gofiber/fiber/v2"
 )
 
@@ -1312,8 +1312,8 @@ All logging **MUST** use `logger.Log(ctx, level, message, fields...)` with typed
 
 ```go
 import (
-    libCommons "github.com/LerianStudio/lib-commons/v4/commons"
-    libLog "github.com/LerianStudio/lib-commons/v4/commons/log"
+    libCommons "github.com/LerianStudio/lib-commons/v5/commons"
+    libLog "github.com/LerianStudio/lib-commons/v5/commons/log"
 )
 
 logger, _, _, _ := libCommons.NewTrackingFromContext(ctx)
@@ -1802,7 +1802,7 @@ func (w *Workflow) Update(name string, nodes []Node) error {
 21. **Storing audit data in MongoDB** - Audit trail goes exclusively to PostgreSQL via `AuditWriter` (see [Data Stores](#data-stores))
 22. **Custom JWT validation** - Delegate to `lib-auth/v2` via `AuthGuard` (see [Authentication](#authentication))
 23. **Looking up provider credentials from env vars inside executors** - Credentials flow via `ProviderConfiguration` (see [Executor Catalog](#executor-catalog--providers))
-24. **Using `lib-commons/v2` or `lib-commons/v3`** - Flowker is on `lib-commons/v4` (see [Core Dependency](#core-dependency-lib-commons-mandatory))
+24. **Using `lib-commons/v2` or `lib-commons/v3`** - Flowker is on `lib-commons/v5` (see [Core Dependency](#core-dependency-lib-commons-mandatory))
 
 ---
 

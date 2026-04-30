@@ -13,6 +13,9 @@ import (
 type Service struct {
 	*HTTPServer
 	libLog.Logger
+	// TenantInfra holds multi-tenant infrastructure components.
+	// Nil when MULTI_TENANT_ENABLED=false (single-tenant mode).
+	TenantInfra *TenantInfrastructure
 }
 
 // Run starts the application.

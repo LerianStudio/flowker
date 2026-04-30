@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flowker Multi-Tenant Implementation Preview</title>
+
+<!-- ========== FONTS ========== -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- ========== MERMAID ========== -->
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#FDCB28',
+      primaryTextColor: '#27272A',
+      primaryBorderColor: '#D4D4D8',
+      lineColor: '#71717A',
+      secondaryColor: '#E4E4E7',
+      tertiaryColor: '#F4F4F5'
+    }
+  });
+</script>
+
+<style>
+/* ==========================================================================
+   LERIAN STANDARD FOUNDATION
+   ========================================================================== */
+
+:root {
+  --font-body: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace;
+  --bg: #F4F4F5;
+  --surface: #FFFFFF;
+  --surface-elevated: #FFFFFF;
+  --surface-muted: #E4E4E7;
+  --text: #27272A;
+  --text-secondary: #52525B;
+  --text-muted: #A1A1AA;
+  --text-inverse: #F4F4F5;
+  --accent: #FDCB28;
+  --accent-dim: rgba(253, 203, 40, 0.15);
+  --accent-hover: rgba(253, 203, 40, 0.7);
+  --accent-text: #27272A;
+  --success: #16A34A;
+  --success-bg: #f0fdf4;
+  --success-dim: rgba(22, 163, 74, 0.12);
+  --warning: #EAB308;
+  --warning-bg: #fefce8;
+  --warning-dim: rgba(234, 179, 8, 0.15);
+  --error: #EF4444;
+  --error-bg: #fef2f2;
+  --error-dim: rgba(239, 68, 68, 0.12);
+  --info: #2563EB;
+  --info-bg: #eff6ff;
+  --info-dim: rgba(37, 99, 235, 0.12);
+  --sunglow-400: #FDCB28;
+  --de-york-400: #5BCD86;
+  --de-york-600: #26934F;
+  --tangerine-400: #FAA589;
+  --tangerine-500: #F06E43;
+  --border: #E4E4E7;
+  --border-strong: #D4D4D8;
+  --border-subtle: rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0px 1px 2px rgba(0, 0, 0, 0.1), 0px 10px 20px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0px 4px 8px rgba(0, 0, 0, 0.12), 0px 0px 32px rgba(0, 0, 0, 0.04);
+  --radius: 8px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #27272A;
+    --surface: #3F3F46;
+    --surface-elevated: #52525B;
+    --surface-muted: #52525B;
+    --text: #F4F4F5;
+    --text-secondary: #A1A1AA;
+    --text-muted: #71717A;
+    --text-inverse: #27272A;
+    --accent: #FDCB28;
+    --accent-dim: rgba(253, 203, 40, 0.2);
+    --accent-text: #27272A;
+    --border: #52525B;
+    --border-strong: #71717A;
+    --border-subtle: rgba(255, 255, 255, 0.06);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0px 2px 4px rgba(0, 0, 0, 0.3), 0px 10px 20px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0px 4px 8px rgba(0, 0, 0, 0.4), 0px 0px 32px rgba(0, 0, 0, 0.15);
+  }
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--bg);
+  padding: 40px 20px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container { max-width: 1200px; margin: 0 auto; }
+
+.lerian-header { margin-bottom: 32px; }
+.lerian-header a { display: inline-block; text-decoration: none; color: var(--text); transition: color 0.2s ease; }
+.lerian-header a:hover { color: var(--accent); }
+.lerian-header .logo-mark { width: 100px; height: auto; display: block; }
+
+h1 { font-size: 36px; font-weight: 700; letter-spacing: -0.02em; color: var(--text); line-height: 1.2; margin-bottom: 8px; }
+h2 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; color: var(--text); line-height: 1.3; margin-bottom: 12px; margin-top: 40px; }
+h3 { font-size: 16px; font-weight: 600; color: var(--text); line-height: 1.4; margin-bottom: 8px; margin-top: 24px; }
+p { color: var(--text-secondary); margin-bottom: 16px; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 16px;
+}
+
+.card-elevated {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow-md);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.badge-success { background: var(--success-bg); color: #166534; }
+.badge-warning { background: var(--warning-bg); color: #854d0e; }
+.badge-error { background: var(--error-bg); color: #991b1b; }
+.badge-info { background: var(--info-bg); color: #1e40af; }
+.badge-accent { background: var(--accent-dim); color: var(--accent-text); }
+.badge-neutral { background: var(--surface-muted); color: var(--text-secondary); }
+
+@media (prefers-color-scheme: dark) {
+  .badge-success { color: #bbf7d0; }
+  .badge-warning { color: #fef08a; }
+  .badge-error { color: #fecaca; }
+  .badge-info { color: #bfdbfe; }
+}
+
+.data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.data-table thead th { text-align: left; font-weight: 500; color: var(--text-secondary); padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.data-table tbody td { padding: 12px 16px; border-bottom: 1px solid var(--border-subtle); color: var(--text); }
+.data-table tbody tr:hover { background: rgba(253, 203, 40, 0.04); }
+@media (prefers-color-scheme: dark) { .data-table tbody tr:hover { background: rgba(253, 203, 40, 0.06); } }
+
+.mono { font-family: var(--font-mono); }
+.text-muted { color: var(--text-muted); }
+.text-secondary { color: var(--text-secondary); }
+.text-accent { color: var(--accent); }
+.text-success { color: var(--success); }
+.text-error { color: var(--error); }
+.font-medium { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+.font-bold { font-weight: 700; }
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+.animate { opacity: 0; animation: fadeUp 0.5s ease-out forwards; animation-delay: calc(var(--i, 0) * 0.05s); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
+
+.lerian-footer { margin-top: 64px; padding: 24px 0; border-top: 1px solid var(--border); position: relative; }
+.lerian-footer::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 100vw; height: 100%; background: var(--surface); border-top: 1px solid var(--border); z-index: -1; }
+.footer-inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+.footer-brand { display: flex; align-items: center; gap: 12px; }
+.footer-brand .logo-mark { height: 20px; width: auto; color: var(--text); }
+.footer-brand-text { display: flex; flex-direction: column; gap: 1px; }
+.footer-company { font-weight: 600; font-size: 14px; color: var(--text); line-height: 1.3; }
+.footer-link { font-size: 13px; color: var(--text-muted); text-decoration: none; transition: color 0.2s ease; }
+.footer-link:hover { color: var(--accent); }
+.footer-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.footer-generated { font-size: 13px; color: var(--text-secondary); }
+.footer-generated strong { font-weight: 600; }
+.footer-date { font-size: 13px; color: var(--text-muted); }
+
+/* ========== TEMPLATE-SPECIFIC STYLES ========== */
+
+.section { margin-bottom: 48px; }
+.accent-bar { width: 40px; height: 4px; background: var(--accent); border-radius: var(--radius-full); margin-bottom: 16px; }
+.subtitle { color: var(--text-secondary); font-size: 17px; line-height: 1.5; max-width: 800px; margin-bottom: 24px; }
+
+.mermaid-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; overflow-x: auto; margin: 16px 0; }
+.mermaid { min-width: 100%; }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin: 24px 0; }
+.kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; text-align: center; }
+.kpi-value { font-size: 28px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+.kpi-label { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+
+.code-block { background: #1e1e1e; border-radius: var(--radius); padding: 16px; overflow-x: auto; margin: 12px 0; }
+.code-block pre { color: #d4d4d4; font-family: var(--font-mono); font-size: 13px; line-height: 1.5; margin: 0; white-space: pre; }
+.code-block .comment { color: #6A9955; }
+.code-block .keyword { color: #569CD6; }
+.code-block .string { color: #CE9178; }
+.code-block .function { color: #DCDCAA; }
+.code-block .type { color: #4EC9B0; }
+
+.diff-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+.diff-side { background: #1e1e1e; border-radius: var(--radius); padding: 12px; overflow-x: auto; }
+.diff-side h4 { color: var(--text-muted); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+.diff-side.before { border-left: 3px solid var(--error); }
+.diff-side.after { border-left: 3px solid var(--success); }
+.diff-side pre { color: #d4d4d4; font-family: var(--font-mono); font-size: 12px; line-height: 1.5; margin: 0; white-space: pre; }
+
+@media (max-width: 900px) {
+  .diff-panel { grid-template-columns: 1fr; }
+}
+
+.status-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; font-size: 12px; }
+.status-pass { background: var(--success-bg); color: var(--success); }
+.status-fail { background: var(--error-bg); color: var(--error); }
+.status-skip { background: var(--surface-muted); color: var(--text-muted); }
+.status-na { background: var(--info-bg); color: var(--info); }
+
+.env-table { margin: 16px 0; }
+.env-table code { background: var(--surface-muted); padding: 2px 6px; border-radius: 4px; font-family: var(--font-mono); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ========== HEADER ========== -->
+  <header class="lerian-header">
+    <a href="https://lerian.studio" aria-label="Lerian Studio">
+      <svg class="logo-mark" viewBox="0 0 1090.88 280" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <path fill-rule="evenodd" d="M619.42,29.69c0,15.43-10.87,27.93-27.93,27.93s-27.93-12.51-27.93-27.93,10.86-27.93,27.92-27.93,27.93,12.51,27.93,27.93h0ZM158.64,242.4v33.54H12.13v-33.55h48.36c3.16,0,5.73-2.57,5.73-5.73V87.77c0-3.16-2.57-5.73-5.73-5.73H7.85v-34.31h98.33v188.94c0,3.16,2.57,5.73,5.73,5.73h46.74ZM168.85,179.86c0,58.52,37.29,98.33,99.47,98.33,49.15,0,79.7-30.6,86.27-67.08h-40.69c-6.29,24.54-26.97,33.91-48.61,33.91-48.85,0-53.41-45.18-53.83-55-.04-1.02.77-1.87,1.79-1.87h143.61c.76-5.26,1.13-10.42,1.13-15.44,0-32.71-20.25-91.92-95.33-91.92-57.04,0-93.8,41.26-93.81,99.07ZM314.47,158.39l-99.49.02c-1.08,0-1.94-.96-1.78-2.02,4.49-31.28,30.98-42.82,50.98-42.82,33.88,0,48.71,21.59,52.08,42.79.17,1.08-.69,2.04-1.78,2.04h0ZM867.2,83.16h0s0,0,0,0h0ZM826.87,83.16h40.33v192.83h-40.32v-24.53c0-3.09-3.92-4.41-5.79-1.95-.18.23-.35.47-.53.71h0s0,.02,0,.02h0c-.11.16-.23.32-.35.47-7.92,10.56-20.68,27.53-56.24,27.53-60.83,0-91.19-46.33-91.19-98.7,0-61.42,40.37-98.72,91.17-98.72,36.73,0,48.44,15.73,56.64,26.75l.49.66c1.86,2.49,5.81,1.18,5.81-1.93v-23.14ZM770.75,115.48c34.78,0,56.14,27.81,56.14,64.8h0c0,42-26.32,63.68-56.14,63.68-34.83,0-56.14-27.43-56.14-64.43,0-42.07,26.11-64.05,56.14-64.05ZM1063.39,101.7c14.42,14.06,21.64,36.67,21.64,67.8v106.25h-41.06v-103.99c0-43.98-22.35-56.14-45.96-56.14-31.99,0-51.6,23.22-51.6,62.92v97.21h-40.68V83.15h39.93v25.07c0,3.11,3.95,4.4,5.82,1.92,8.55-11.4,26.72-29.52,55.98-29.52,37.55,0,55.75,20.88,55.93,21.08ZM657.42,275.94v-33.54h0s-37.37,0-37.37,0c-3.16,0-5.73-2.57-5.73-5.73V83.14h-81.34v34.31h37.54c3.16,0,5.73,2.57,5.73,5.73v113.48c0,3.16-2.57,5.73-5.73,5.73h-38.14v33.55h125.03ZM499.27,119.27c0,.13-.1.23-.23.23h0s-36.31,0-36.31,0c-28.68,0-28.65,24.99-28.64,43.62,0,.46,0,.92,0,1.37v111.24c0,.13-.1.23-.23.23h-41.01c-.13,0-.23-.1-.23-.23V83.27c0-.13.1-.23.23-.23h36.49c.13,0,.23.1.23.23v24.03c0,4.05,5.24,5.65,7.49,2.28.22-.32.43-.64.65-.97,8.18-12.25,18.71-28.02,52.51-28.02h9.05v38.68Z"/>
+      </svg>
+    </a>
+  </header>
+
+  <!-- ========== TITLE ========== -->
+  <section class="section animate" style="--i: 0">
+    <h1>Flowker Multi-Tenant Implementation Preview</h1>
+    <p class="subtitle">
+      Comprehensive preview of the multi-tenant implementation for Flowker using lib-commons/v5 tenant-manager sub-packages.
+      This document shows the current state, target architecture, and all changes that will be made.
+    </p>
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-value text-success">2</div>
+        <div class="kpi-label">Dependencies Ready</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value">6</div>
+        <div class="kpi-label">Repositories to Adapt</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value">~505</div>
+        <div class="kpi-label">Lines to Change</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value">8</div>
+        <div class="kpi-label">Gates to Execute</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 1. CURRENT STATE ========== -->
+  <section class="section animate" style="--i: 1">
+    <div class="accent-bar"></div>
+    <h2>1. Current State (Before)</h2>
+
+    <h3>Current Architecture</h3>
+    <div class="mermaid-wrap">
+      <pre class="mermaid">
+flowchart TB
+    subgraph "Current Flowker Architecture"
+        REQ[HTTP Request] --> MW[Middleware Chain]
+        MW --> AUTH[Auth Guard]
+        AUTH --> HANDLERS[Route Handlers]
+
+        subgraph "Static DB Connections"
+            HANDLERS --> MONGO_STATIC["MongoDB<br/>Static *mongo.Collection"]
+            HANDLERS --> PG_STATIC["PostgreSQL<br/>Static *pgxpool.Pool"]
+        end
+
+        MONGO_STATIC --> DB1[(flowker database)]
+        PG_STATIC --> DB2[(audit database)]
+    end
+
+    style MONGO_STATIC fill:#ff6b6b,stroke:#333
+    style PG_STATIC fill:#ff6b6b,stroke:#333
+      </pre>
+    </div>
+
+    <h3>Compliance Audit Results (Gate 0 Phase 2)</h3>
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Check</th>
+            <th>Component</th>
+            <th>Status</th>
+            <th>Evidence</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono">A1</td>
+            <td>Config vars (MULTI_TENANT_*)</td>
+            <td><span class="badge badge-error">NON-COMPLIANT</span></td>
+            <td class="text-muted">No env vars exist</td>
+          </tr>
+          <tr>
+            <td class="mono">A2</td>
+            <td>Tenant ID context</td>
+            <td><span class="badge badge-error">NON-COMPLIANT</span></td>
+            <td class="text-muted">No ContextWithTenantID</td>
+          </tr>
+          <tr>
+            <td class="mono">A3</td>
+            <td>Middleware compliance</td>
+            <td><span class="badge badge-error">NON-COMPLIANT</span></td>
+            <td class="text-muted">No TenantMiddleware</td>
+          </tr>
+          <tr>
+            <td class="mono">A4</td>
+            <td>Repository compliance</td>
+            <td><span class="badge badge-error">NON-COMPLIANT</span></td>
+            <td class="text-muted">No GetPGContext/GetMBContext</td>
+          </tr>
+          <tr>
+            <td class="mono">A5</td>
+            <td>Redis compliance</td>
+            <td><span class="badge badge-neutral">N/A</span></td>
+            <td class="text-muted">Redis not detected</td>
+          </tr>
+          <tr>
+            <td class="mono">A6</td>
+            <td>S3 compliance</td>
+            <td><span class="badge badge-neutral">N/A</span></td>
+            <td class="text-muted">S3 not used as storage</td>
+          </tr>
+          <tr>
+            <td class="mono">A7</td>
+            <td>RabbitMQ compliance</td>
+            <td><span class="badge badge-neutral">N/A</span></td>
+            <td class="text-muted">RabbitMQ not detected</td>
+          </tr>
+          <tr>
+            <td class="mono">A8</td>
+            <td>Circuit breaker</td>
+            <td><span class="badge badge-neutral">N/A</span></td>
+            <td class="text-muted">Not applicable</td>
+          </tr>
+          <tr>
+            <td class="mono">A9</td>
+            <td>Backward compatibility</td>
+            <td><span class="badge badge-error">NON-COMPLIANT</span></td>
+            <td class="text-muted">No test exists</td>
+          </tr>
+          <tr>
+            <td class="mono">A10</td>
+            <td>Service API key</td>
+            <td><span class="badge badge-error">NON-COMPLIANT</span></td>
+            <td class="text-muted">Not configured</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Current Repository Pattern</h3>
+    <div class="code-block">
+      <pre><span class="comment">// CURRENT: Static collection injected at construction</span>
+<span class="keyword">type</span> <span class="type">MongoDBRepository</span> <span class="keyword">struct</span> {
+    collection *mongo.<span class="type">Collection</span>  <span class="comment">// STATIC - same for all requests</span>
+}
+
+<span class="keyword">func</span> <span class="function">NewMongoDBRepository</span>(db *mongo.<span class="type">Database</span>) *<span class="type">MongoDBRepository</span> {
+    <span class="keyword">return</span> &<span class="type">MongoDBRepository</span>{
+        collection: db.<span class="function">Collection</span>(CollectionName),
+    }
+}
+
+<span class="keyword">func</span> (r *<span class="type">MongoDBRepository</span>) <span class="function">Create</span>(ctx context.<span class="type">Context</span>, entity *<span class="type">Entity</span>) <span class="keyword">error</span> {
+    _, err := r.collection.<span class="function">InsertOne</span>(ctx, entity)  <span class="comment">// Uses static collection</span>
+    <span class="keyword">return</span> err
+}</pre>
+    </div>
+  </section>
+
+  <!-- ========== 2. TARGET STATE ========== -->
+  <section class="section animate" style="--i: 2">
+    <div class="accent-bar"></div>
+    <h2>2. Target State (After)</h2>
+
+    <h3>Target Multi-Tenant Architecture</h3>
+    <div class="mermaid-wrap">
+      <pre class="mermaid">
+flowchart TB
+    subgraph "Multi-Tenant Flowker Architecture"
+        REQ["HTTP Request + JWT"] --> MW[Middleware Chain]
+        MW --> AUTH["Auth Guard<br/>Extract JWT"]
+        AUTH --> TM["TenantMiddleware<br/>Extract tenantId from JWT"]
+
+        TM --> |"tenantId in context"| HANDLERS[Route Handlers]
+
+        subgraph "Tenant-Aware Connection Managers"
+            HANDLERS --> MONGO_MGR["mongo.Manager<br/>tmcore.GetMBContext(ctx)"]
+            HANDLERS --> PG_MGR["postgres.Manager<br/>tmcore.GetPGContext(ctx)"]
+        end
+
+        MONGO_MGR --> |tenant-123| DB_T1[("tenant-123-flowker")]
+        MONGO_MGR --> |tenant-456| DB_T2[("tenant-456-flowker")]
+        PG_MGR --> |tenant-123| PG_T1[("tenant-123-audit")]
+        PG_MGR --> |tenant-456| PG_T2[("tenant-456-audit")]
+    end
+
+    subgraph "Backward Compatibility"
+        ENV{"MULTI_TENANT_ENABLED?"}
+        ENV --> |false| SINGLE["Single-tenant mode<br/>Original static connections"]
+        ENV --> |true| TM
+    end
+
+    style TM fill:#4ecdc4,stroke:#333
+    style MONGO_MGR fill:#4ecdc4,stroke:#333
+    style PG_MGR fill:#4ecdc4,stroke:#333
+      </pre>
+    </div>
+
+    <h3>Target Repository Pattern</h3>
+    <div class="code-block">
+      <pre><span class="comment">// TARGET: Dynamic database resolution per request</span>
+<span class="keyword">type</span> <span class="type">MongoDBRepository</span> <span class="keyword">struct</span> {
+    mongoManager *tmmongo.<span class="type">Manager</span>  <span class="comment">// Connection manager</span>
+    module       <span class="keyword">string</span>            <span class="comment">// Module name for dispatch layer</span>
+}
+
+<span class="keyword">func</span> <span class="function">NewMongoDBRepository</span>(mgr *tmmongo.<span class="type">Manager</span>, module <span class="keyword">string</span>) *<span class="type">MongoDBRepository</span> {
+    <span class="keyword">return</span> &<span class="type">MongoDBRepository</span>{
+        mongoManager: mgr,
+        module:       module,
+    }
+}
+
+<span class="keyword">func</span> (r *<span class="type">MongoDBRepository</span>) <span class="function">Create</span>(ctx context.<span class="type">Context</span>, entity *<span class="type">Entity</span>) <span class="keyword">error</span> {
+    db := tmcore.<span class="function">GetMBContext</span>(ctx, r.module)  <span class="comment">// Dynamic tenant-specific database</span>
+    <span class="keyword">if</span> db == <span class="keyword">nil</span> {
+        <span class="keyword">return</span> fmt.<span class="function">Errorf</span>(<span class="string">"tenant mongodb connection missing from context"</span>)
+    }
+    _, err := db.<span class="function">Collection</span>(CollectionName).<span class="function">InsertOne</span>(ctx, entity)
+    <span class="keyword">return</span> err
+}</pre>
+    </div>
+  </section>
+
+  <!-- ========== 3. CHANGE MAP ========== -->
+  <section class="section animate" style="--i: 3">
+    <div class="accent-bar"></div>
+    <h2>3. Change Map (per gate)</h2>
+
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Gate</th>
+            <th>File</th>
+            <th>What Changes</th>
+            <th>Impact</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-success">2</span></td>
+            <td class="mono">go.mod</td>
+            <td>SKIP - lib-commons v5.1.0 + lib-auth v2.7.0 already present</td>
+            <td class="text-muted">0 lines</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-accent">3</span></td>
+            <td class="mono">internal/bootstrap/config.go</td>
+            <td>Add 14 canonical MULTI_TENANT_* env vars to Config struct</td>
+            <td>~25 lines added</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-accent">3</span></td>
+            <td class="mono">.env.example</td>
+            <td>Add MULTI_TENANT_* env vars with defaults</td>
+            <td>~20 lines added</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-info">4</span></td>
+            <td class="mono">internal/bootstrap/config.go</td>
+            <td>Add TenantMiddleware setup with WithPG + WithMB</td>
+            <td>~60 lines added</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-info">4</span></td>
+            <td class="mono">internal/adapters/http/in/routes.go</td>
+            <td>Register TenantMiddleware in route chain</td>
+            <td>~10 lines added</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-warning">5</span></td>
+            <td class="mono">internal/adapters/mongodb/workflow/repository.go</td>
+            <td>Static collection → tmcore.GetMBContext(ctx)</td>
+            <td>~15 lines modified</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-warning">5</span></td>
+            <td class="mono">internal/adapters/mongodb/execution/repository.go</td>
+            <td>Static collection → tmcore.GetMBContext(ctx)</td>
+            <td>~15 lines modified</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-warning">5</span></td>
+            <td class="mono">internal/adapters/mongodb/provider_configuration/repository.go</td>
+            <td>Static collection → tmcore.GetMBContext(ctx)</td>
+            <td>~15 lines modified</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-warning">5</span></td>
+            <td class="mono">internal/adapters/mongodb/executor_configuration/repository.go</td>
+            <td>Static collection → tmcore.GetMBContext(ctx)</td>
+            <td>~15 lines modified</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-warning">5</span></td>
+            <td class="mono">internal/adapters/mongodb/dashboard/repository.go</td>
+            <td>Static collections → tmcore.GetMBContext(ctx)</td>
+            <td>~20 lines modified</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-warning">5</span></td>
+            <td class="mono">internal/adapters/postgresql/audit/repository.go</td>
+            <td>Static pool → tmcore.GetPGContext(ctx)</td>
+            <td>~15 lines modified</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-neutral">5.5</span></td>
+            <td class="mono">N/A</td>
+            <td>SKIP - has_m2m = false</td>
+            <td class="text-muted">0 lines</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-neutral">6</span></td>
+            <td class="mono">N/A</td>
+            <td>SKIP - no RabbitMQ</td>
+            <td class="text-muted">0 lines</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-info">7</span></td>
+            <td class="mono">internal/bootstrap/config.go</td>
+            <td>Add backward compat validation</td>
+            <td>~15 lines added</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-info">7</span></td>
+            <td class="mono">internal/bootstrap/multi_tenant_test.go</td>
+            <td>Add TestMultiTenant_BackwardCompatibility</td>
+            <td>~80 lines new file</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-accent">8</span></td>
+            <td class="mono">internal/adapters/mongodb/*_test.go</td>
+            <td>Add multi-tenant unit tests</td>
+            <td>~200 lines across files</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p><strong>Total Estimated Changes: ~505 lines</strong></p>
+  </section>
+
+  <!-- ========== 4. BACKWARD COMPATIBILITY ========== -->
+  <section class="section animate" style="--i: 4">
+    <div class="accent-bar"></div>
+    <h2>4. Backward Compatibility Analysis</h2>
+
+    <h3>When MULTI_TENANT_ENABLED=false (default)</h3>
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Behavior</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="font-medium">TenantMiddleware</td>
+            <td>NOT registered - calls c.Next() immediately if accidentally included</td>
+          </tr>
+          <tr>
+            <td class="font-medium">MongoDB connections</td>
+            <td>Uses original static *mongo.Database from bootstrap</td>
+          </tr>
+          <tr>
+            <td class="font-medium">PostgreSQL connections</td>
+            <td>Uses original static *pgxpool.Pool from bootstrap</td>
+          </tr>
+          <tr>
+            <td class="font-medium">JWT parsing</td>
+            <td>No tenant extraction - existing auth flow unchanged</td>
+          </tr>
+          <tr>
+            <td class="font-medium">go test ./...</td>
+            <td>All existing tests pass with zero changes</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Bootstrap Conditional Initialization</h3>
+    <div class="code-block">
+      <pre><span class="keyword">if</span> cfg.MultiTenantEnabled && cfg.MultiTenantURL != <span class="string">""</span> {
+    <span class="comment">// Multi-tenant path (NEW)</span>
+    tmClient := client.<span class="function">NewClient</span>(cfg.MultiTenantURL, logger,
+        client.<span class="function">WithTimeout</span>(time.<span class="function">Duration</span>(cfg.MultiTenantTimeout)*time.Second),
+        client.<span class="function">WithCircuitBreaker</span>(...),
+        client.<span class="function">WithServiceAPIKey</span>(cfg.MultiTenantServiceAPIKey),
+    )
+    mongoManager := tmmongo.<span class="function">NewManager</span>(tmClient, logger)
+    pgManager := tmpostgres.<span class="function">NewManager</span>(tmClient, logger,
+        tmpostgres.<span class="function">WithConnectionsCheckInterval</span>(time.<span class="function">Duration</span>(cfg.MultiTenantConnectionsCheckIntervalSec)*time.Second),
+    )
+
+    <span class="comment">// Create tenant middleware</span>
+    tenantMW := tmmiddleware.<span class="function">NewTenantMiddleware</span>(cfg, logger,
+        tmmiddleware.<span class="function">WithMB</span>(mongoManager),
+        tmmiddleware.<span class="function">WithPG</span>(pgManager),
+    )
+
+    <span class="comment">// Wire repositories with managers</span>
+    workflowRepo = workflow.<span class="function">NewMongoDBRepositoryMultiTenant</span>(mongoManager)
+    <span class="comment">// ... other repos</span>
+} <span class="keyword">else</span> {
+    <span class="comment">// Single-tenant path (UNCHANGED — exactly how it works today)</span>
+    logger.<span class="function">Info</span>(<span class="string">"Running in SINGLE-TENANT MODE"</span>)
+    dbManager := <span class="function">NewDatabaseManagerWithConfig</span>(mongoConfig)
+    dbManager.<span class="function">Connect</span>(ctx)
+    workflowRepo = workflow.<span class="function">NewMongoDBRepository</span>(dbManager.<span class="function">GetDatabase</span>())
+    <span class="comment">// ... other repos (unchanged)</span>
+}</pre>
+    </div>
+  </section>
+
+  <!-- ========== 5. NEW DEPENDENCIES ========== -->
+  <section class="section animate" style="--i: 5">
+    <div class="accent-bar"></div>
+    <h2>5. New Dependencies</h2>
+
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Package</th>
+            <th>Import Path</th>
+            <th>Purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="font-medium mono">tmmiddleware</td>
+            <td class="mono text-muted">github.com/LerianStudio/lib-commons/v5/commons/tenant-manager/middleware</td>
+            <td>TenantMiddleware with WithPG/WithMB</td>
+          </tr>
+          <tr>
+            <td class="font-medium mono">tmclient</td>
+            <td class="mono text-muted">github.com/LerianStudio/lib-commons/v5/commons/tenant-manager/client</td>
+            <td>Tenant Manager HTTP client</td>
+          </tr>
+          <tr>
+            <td class="font-medium mono">tmcore</td>
+            <td class="mono text-muted">github.com/LerianStudio/lib-commons/v5/commons/tenant-manager/core</td>
+            <td>GetPGContext, GetMBContext helpers</td>
+          </tr>
+          <tr>
+            <td class="font-medium mono">tmmongo</td>
+            <td class="mono text-muted">github.com/LerianStudio/lib-commons/v5/commons/tenant-manager/mongo</td>
+            <td>MongoDB Manager</td>
+          </tr>
+          <tr>
+            <td class="font-medium mono">tmpostgres</td>
+            <td class="mono text-muted">github.com/LerianStudio/lib-commons/v5/commons/tenant-manager/postgres</td>
+            <td>PostgreSQL Manager</td>
+          </tr>
+          <tr>
+            <td class="font-medium mono">tmredis</td>
+            <td class="mono text-muted">github.com/LerianStudio/lib-commons/v5/commons/tenant-manager/redis</td>
+            <td>Tenant Pub/Sub Redis client</td>
+          </tr>
+          <tr>
+            <td class="font-medium mono">tmevent</td>
+            <td class="mono text-muted">github.com/LerianStudio/lib-commons/v5/commons/tenant-manager/event</td>
+            <td>Event-driven tenant discovery</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ========== 6. ENVIRONMENT VARIABLES ========== -->
+  <section class="section animate" style="--i: 6">
+    <div class="accent-bar"></div>
+    <h2>6. Environment Variables (New)</h2>
+
+    <div class="card env-table" style="padding: 0; overflow: hidden;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Env Var</th>
+            <th>Type</th>
+            <th>Default</th>
+            <th>Required</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>MULTI_TENANT_ENABLED</code></td>
+            <td class="mono">bool</td>
+            <td class="mono">false</td>
+            <td>No</td>
+            <td>Enable multi-tenant mode</td>
+          </tr>
+          <tr>
+            <td><code>MULTI_TENANT_URL</code></td>
+            <td class="mono">string</td>
+            <td class="text-muted">-</td>
+            <td>When enabled</td>
+            <td>Tenant Manager API URL</td>
+          </tr>
+          <tr>
+            <td><code>MULTI_TENANT_REDIS_HOST</code></td>
+            <td class="mono">string</td>
+            <td class="text-muted">-</td>
+            <td>When enabled</td>
+            <td>Redis host for Pub/Sub</td>
+          </tr>
+          <tr>
+            <td><code>MULTI_TENANT_REDIS_PORT</code></td>
+            <td class="mono">string</td>
+            <td class="mono">6379</td>
+            <td>No</td>
+            <td>Redis port</td>
+          </tr>
+          <tr>
+            <td><code>MULTI_TENANT_REDIS_PASSWORD</code></td>
+            <td class="mono">string</td>
+            <td class="text-muted">-</td>
+            <td>No</td>
+            <td>Redis password</td>
+          </tr>
+          <tr>
+            <td><code>MULTI_TENANT_REDIS_TLS</code></td>
+            <td class="mono">bool</td>
+            <td class="mono">false</td>
+            <td>No</td>
+            <td>Enable TLS for Redis</td>
+          </tr>
+          <tr>
+            <td><code>MULTI_TENANT_MAX_TENANT_POOLS</code></td>
+            <td class="mono">int</td>
+            <td class="mono">100</td>
+            <td>No</td>
+            <td>Max concurrent tenant pools</td>
+          </tr>
+          <tr>
+            <td><code>MULTI_TENANT_IDLE_TIMEOUT_SEC</code></td>
+            <td class="mono">int</td>
+            <td class="mono">300</td>
+            <td>No</td>
+            <td>Idle pool timeout</td>
+          </tr>
+          <tr>
+            <td><code>MULTI_TENANT_TIMEOUT</code></td>
+            <td class="mono">int</td>
+            <td class="mono">30</td>
+            <td>No</td>
+            <td>HTTP client timeout</td>
+          </tr>
+          <tr>
+            <td><code>MULTI_TENANT_CIRCUIT_BREAKER_THRESHOLD</code></td>
+            <td class="mono">int</td>
+            <td class="mono">5</td>
+            <td>No</td>
+            <td>Circuit breaker threshold</td>
+          </tr>
+          <tr>
+            <td><code>MULTI_TENANT_CIRCUIT_BREAKER_TIMEOUT_SEC</code></td>
+            <td class="mono">int</td>
+            <td class="mono">30</td>
+            <td>No</td>
+            <td>Circuit breaker timeout</td>
+          </tr>
+          <tr>
+            <td><code>MULTI_TENANT_SERVICE_API_KEY</code></td>
+            <td class="mono">string</td>
+            <td class="text-muted">-</td>
+            <td>When enabled</td>
+            <td>API key for Tenant Manager</td>
+          </tr>
+          <tr>
+            <td><code>MULTI_TENANT_CACHE_TTL_SEC</code></td>
+            <td class="mono">int</td>
+            <td class="mono">120</td>
+            <td>No</td>
+            <td>Tenant config cache TTL</td>
+          </tr>
+          <tr>
+            <td><code>MULTI_TENANT_CONNECTIONS_CHECK_INTERVAL_SEC</code></td>
+            <td class="mono">int</td>
+            <td class="mono">30</td>
+            <td>No</td>
+            <td>Settings revalidation interval</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ========== 7. RISK ASSESSMENT ========== -->
+  <section class="section animate" style="--i: 7">
+    <div class="accent-bar"></div>
+    <h2>7. Risk Assessment</h2>
+
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Risk</th>
+            <th>Mitigation</th>
+            <th>Verification</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="font-medium">Backward compatibility broken</td>
+            <td>Gate 7 tests with MULTI_TENANT_ENABLED=false</td>
+            <td class="mono">MULTI_TENANT_ENABLED=false go test ./...</td>
+          </tr>
+          <tr>
+            <td class="font-medium">Missing tenant context → panic</td>
+            <td>Repositories check for nil before using</td>
+            <td>Unit tests with missing context</td>
+          </tr>
+          <tr>
+            <td class="font-medium">Connection pool exhaustion</td>
+            <td>WithMaxTenantPools limits concurrent pools</td>
+            <td>Load test with many tenants</td>
+          </tr>
+          <tr>
+            <td class="font-medium">Tenant Manager unavailable</td>
+            <td>Circuit breaker protects against cascade</td>
+            <td>Integration test with down Tenant Manager</td>
+          </tr>
+          <tr>
+            <td class="font-medium">Redis unavailable</td>
+            <td>Falls back to direct Tenant Manager calls</td>
+            <td>Graceful degradation test</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ========== 8. MODULE CONSTANTS ========== -->
+  <section class="section animate" style="--i: 8">
+    <div class="accent-bar"></div>
+    <h2>8. Module Constants (Required)</h2>
+
+    <p>Add to <code>pkg/constant/app.go</code>:</p>
+
+    <div class="code-block">
+      <pre><span class="keyword">const</span> (
+    ApplicationName = <span class="string">"flowker"</span>
+    ModuleManager   = <span class="string">"manager"</span>  <span class="comment">// Single module for dispatch layer</span>
+)</pre>
+    </div>
+  </section>
+
+  <!-- ========== GATES SUMMARY ========== -->
+  <section class="section animate" style="--i: 9">
+    <div class="accent-bar"></div>
+    <h2>Gates to Execute</h2>
+
+    <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));">
+      <div class="kpi-card" style="border-left: 3px solid var(--success);">
+        <div class="kpi-value" style="font-size: 20px;">Gate 2</div>
+        <div class="kpi-label">SKIP</div>
+      </div>
+      <div class="kpi-card" style="border-left: 3px solid var(--accent);">
+        <div class="kpi-value" style="font-size: 20px;">Gate 3</div>
+        <div class="kpi-label">Config</div>
+      </div>
+      <div class="kpi-card" style="border-left: 3px solid var(--info);">
+        <div class="kpi-value" style="font-size: 20px;">Gate 4</div>
+        <div class="kpi-label">Middleware</div>
+      </div>
+      <div class="kpi-card" style="border-left: 3px solid var(--warning);">
+        <div class="kpi-value" style="font-size: 20px;">Gate 5</div>
+        <div class="kpi-label">Repositories</div>
+      </div>
+      <div class="kpi-card" style="border-left: 3px solid var(--text-muted);">
+        <div class="kpi-value" style="font-size: 20px;">Gate 5.5</div>
+        <div class="kpi-label">SKIP (no M2M)</div>
+      </div>
+      <div class="kpi-card" style="border-left: 3px solid var(--text-muted);">
+        <div class="kpi-value" style="font-size: 20px;">Gate 6</div>
+        <div class="kpi-label">SKIP (no RMQ)</div>
+      </div>
+      <div class="kpi-card" style="border-left: 3px solid var(--info);">
+        <div class="kpi-value" style="font-size: 20px;">Gate 7</div>
+        <div class="kpi-label">Compat</div>
+      </div>
+      <div class="kpi-card" style="border-left: 3px solid var(--accent);">
+        <div class="kpi-value" style="font-size: 20px;">Gate 8</div>
+        <div class="kpi-label">Tests</div>
+      </div>
+      <div class="kpi-card" style="border-left: 3px solid var(--error);">
+        <div class="kpi-value" style="font-size: 20px;">Gate 9</div>
+        <div class="kpi-label">Review</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== FOOTER ========== -->
+  <footer class="lerian-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <svg class="logo-mark" viewBox="0 0 1090.88 280" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <path fill-rule="evenodd" d="M619.42,29.69c0,15.43-10.87,27.93-27.93,27.93s-27.93-12.51-27.93-27.93,10.86-27.93,27.92-27.93,27.93,12.51,27.93,27.93h0ZM158.64,242.4v33.54H12.13v-33.55h48.36c3.16,0,5.73-2.57,5.73-5.73V87.77c0-3.16-2.57-5.73-5.73-5.73H7.85v-34.31h98.33v188.94c0,3.16,2.57,5.73,5.73,5.73h46.74ZM168.85,179.86c0,58.52,37.29,98.33,99.47,98.33,49.15,0,79.7-30.6,86.27-67.08h-40.69c-6.29,24.54-26.97,33.91-48.61,33.91-48.85,0-53.41-45.18-53.83-55-.04-1.02.77-1.87,1.79-1.87h143.61c.76-5.26,1.13-10.42,1.13-15.44,0-32.71-20.25-91.92-95.33-91.92-57.04,0-93.8,41.26-93.81,99.07ZM314.47,158.39l-99.49.02c-1.08,0-1.94-.96-1.78-2.02,4.49-31.28,30.98-42.82,50.98-42.82,33.88,0,48.71,21.59,52.08,42.79.17,1.08-.69,2.04-1.78,2.04h0ZM867.2,83.16h0s0,0,0,0h0ZM826.87,83.16h40.33v192.83h-40.32v-24.53c0-3.09-3.92-4.41-5.79-1.95-.18.23-.35.47-.53.71h0s0,.02,0,.02h0c-.11.16-.23.32-.35.47-7.92,10.56-20.68,27.53-56.24,27.53-60.83,0-91.19-46.33-91.19-98.7,0-61.42,40.37-98.72,91.17-98.72,36.73,0,48.44,15.73,56.64,26.75l.49.66c1.86,2.49,5.81,1.18,5.81-1.93v-23.14ZM770.75,115.48c34.78,0,56.14,27.81,56.14,64.8h0c0,42-26.32,63.68-56.14,63.68-34.83,0-56.14-27.43-56.14-64.43,0-42.07,26.11-64.05,56.14-64.05ZM1063.39,101.7c14.42,14.06,21.64,36.67,21.64,67.8v106.25h-41.06v-103.99c0-43.98-22.35-56.14-45.96-56.14-31.99,0-51.6,23.22-51.6,62.92v97.21h-40.68V83.15h39.93v25.07c0,3.11,3.95,4.4,5.82,1.92,8.55-11.4,26.72-29.52,55.98-29.52,37.55,0,55.75,20.88,55.93,21.08ZM657.42,275.94v-33.54h0s-37.37,0-37.37,0c-3.16,0-5.73-2.57-5.73-5.73V83.14h-81.34v34.31h37.54c3.16,0,5.73,2.57,5.73,5.73v113.48c0,3.16-2.57,5.73-5.73,5.73h-38.14v33.55h125.03ZM499.27,119.27c0,.13-.1.23-.23.23h0s-36.31,0-36.31,0c-28.68,0-28.65,24.99-28.64,43.62,0,.46,0,.92,0,1.37v111.24c0,.13-.1.23-.23.23h-41.01c-.13,0-.23-.1-.23-.23V83.27c0-.13.1-.23.23-.23h36.49c.13,0,.23.1.23.23v24.03c0,4.05,5.24,5.65,7.49,2.28.22-.32.43-.64.65-.97,8.18-12.25,18.71-28.02,52.51-28.02h9.05v38.68Z"/>
+        </svg>
+        <div class="footer-brand-text">
+          <span class="footer-company">Lerian Studio</span>
+          <a href="https://lerian.studio" class="footer-link">lerian.studio</a>
+        </div>
+      </div>
+      <div class="footer-meta">
+        <span class="footer-generated">Generated with <strong>Ring</strong></span>
+        <span class="footer-date"></span>
+      </div>
+    </div>
+  </footer>
+
+</div>
+
+<!-- ========== DATE AUTO-FILL ========== -->
+<script>
+  var footerDate = document.querySelector('.footer-date');
+  if (footerDate) footerDate.textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+</script>
+
+</body>
+</html>
