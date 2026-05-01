@@ -320,7 +320,7 @@ func (r *PostgreSQLRepository) VerifyHashChain(ctx context.Context, eventID uuid
 		var (
 			internalID int64
 			hash       string
-			prevHash   string
+			prevHash   *string // Nullable: first audit entry has no previous hash
 		)
 
 		if err := rows.Scan(&internalID, &hash, &prevHash); err != nil {
@@ -329,8 +329,14 @@ func (r *PostgreSQLRepository) VerifyHashChain(ctx context.Context, eventID uuid
 
 		totalChecked++
 
+		// Convert nullable prevHash to string (empty if NULL)
+		prevHashStr := ""
+		if prevHash != nil {
+			prevHashStr = *prevHash
+		}
+
 		// Verify chain: current entry's previousHash should match the last entry's hash
-		if totalChecked > 1 && prevHash != previousHash {
+		if totalChecked > 1 && prevHashStr != previousHash {
 			return &model.HashChainVerificationOutput{
 				IsValid:        false,
 				FirstInvalidID: &internalID,
@@ -370,7 +376,7 @@ func scanAuditEntry(row pgx.Row) (*model.AuditEntry, error) {
 		metadataJSON []byte
 		ts           time.Time
 		hash         string
-		previousHash string
+		previousHash *string // Nullable: first audit entry has no previous hash
 	)
 
 	err := row.Scan(
@@ -383,9 +389,15 @@ func scanAuditEntry(row pgx.Row) (*model.AuditEntry, error) {
 		return nil, err
 	}
 
+	// Convert nullable previousHash to string (empty if NULL)
+	prevHash := ""
+	if previousHash != nil {
+		prevHash = *previousHash
+	}
+
 	return reconstructEntry(internalID, eventID, eventType, action, result,
 		resourceID, resourceType, actorType, actorID, actorIP,
-		contextJSON, metadataJSON, ts, hash, previousHash)
+		contextJSON, metadataJSON, ts, hash, prevHash)
 }
 
 // scanAuditEntryFromRows scans the current row from pgx.Rows into an AuditEntry.
@@ -405,7 +417,7 @@ func scanAuditEntryFromRows(rows pgx.Rows) (*model.AuditEntry, error) {
 		metadataJSON []byte
 		ts           time.Time
 		hash         string
-		previousHash string
+		previousHash *string // Nullable: first audit entry has no previous hash
 	)
 
 	err := rows.Scan(
@@ -418,9 +430,15 @@ func scanAuditEntryFromRows(rows pgx.Rows) (*model.AuditEntry, error) {
 		return nil, err
 	}
 
+	// Convert nullable previousHash to string (empty if NULL)
+	prevHash := ""
+	if previousHash != nil {
+		prevHash = *previousHash
+	}
+
 	return reconstructEntry(internalID, eventID, eventType, action, result,
 		resourceID, resourceType, actorType, actorID, actorIP,
-		contextJSON, metadataJSON, ts, hash, previousHash)
+		contextJSON, metadataJSON, ts, hash, prevHash)
 }
 
 // reconstructEntry builds an AuditEntry from scanned database values.
