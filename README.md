@@ -29,7 +29,7 @@ Flowker is a workflow orchestration platform for financial validation. It enable
 4. **Access the API:**
    - API base URL: `http://localhost:4021`
    - Swagger UI: `http://localhost:4021/swagger/index.html`
-   - Liveness: `http://localhost:4021/health/live` · Readiness: `http://localhost:4021/health/ready`
+   - Health: `http://localhost:4021/health` · Readiness: `http://localhost:4021/readyz`
 
 Prefer a containerized stack? `make up` starts everything via `docker-compose.yml` (production-like).
 
@@ -41,7 +41,7 @@ Flowker uses a dual authentication model driven by environment flags. The middle
 |---|---|---|
 | `/v1/workflows/*`, `/v1/executions/*`, `/v1/catalog/*`, `/v1/dashboards/*`, `/v1/audit-events/*`, `/v1/executors/*`, `/v1/provider-configurations/*` | Access Manager (OIDC/JWT via `lib-auth/v2`) when `PLUGIN_AUTH_ENABLED=true`; otherwise falls back to the API-key middleware (header `X-API-Key`) | `PLUGIN_AUTH_ENABLED`, `PLUGIN_AUTH_ADDRESS`, `API_KEY_ENABLED`, `API_KEY` |
 | `/v1/webhooks/*` | Infrastructure API key (header `X-API-Key`) plus the per-webhook `X-Webhook-Token` validated by the handler when the registered webhook defines one | `API_KEY_ENABLED`, `API_KEY` |
-| `/health/*`, `/swagger/*`, `/version` | Public | — |
+| `/health`, `/readyz`, `/swagger/*`, `/version` | Public | — |
 
 Effective behaviour by flag combination:
 
@@ -161,7 +161,7 @@ pkg/
 - **Web framework**: Fiber v2.52.12
 - **Datastores**: MongoDB (replica set) for domain data · PostgreSQL for audit trail
 - **AuthN**: `lib-auth/v2` (Access Manager, OIDC/JWT) + API key middleware
-- **Observability**: OpenTelemetry (traces, metrics, logs via `lib-commons/v4`)
+- **Observability**: OpenTelemetry (traces, metrics, logs via `lib-commons/v5`)
 - **Testing**: `stretchr/testify`, `go.uber.org/mock`, Testcontainers for integration suites
 
 ## Documentation

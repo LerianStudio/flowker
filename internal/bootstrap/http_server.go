@@ -5,6 +5,8 @@
 package bootstrap
 
 import (
+	"context"
+
 	libCommons "github.com/LerianStudio/lib-commons/v5/commons"
 	libCommonsLog "github.com/LerianStudio/lib-commons/v5/commons/log"
 	libCommonsOtel "github.com/LerianStudio/lib-commons/v5/commons/opentelemetry"
@@ -18,6 +20,7 @@ type HTTPServer struct {
 	serverAddress string
 	logger        libCommonsLog.Logger
 	telemetry     *libCommonsOtel.Telemetry
+	tenantInfra   *TenantInfrastructure // Multi-tenant infrastructure (nil in single-tenant mode)
 }
 
 // ServerAddress returns is a convenience method to return the server address.
@@ -26,12 +29,14 @@ func (s *HTTPServer) ServerAddress() string {
 }
 
 // NewHTTPServer creates an instance of HTTPServer.
-func NewHTTPServer(cfg *Config, app *fiber.App, logger libCommonsLog.Logger, telemetry *libCommonsOtel.Telemetry) *HTTPServer {
+// tenantInfra is optional and may be nil in single-tenant mode.
+func NewHTTPServer(cfg *Config, app *fiber.App, logger libCommonsLog.Logger, telemetry *libCommonsOtel.Telemetry, tenantInfra *TenantInfrastructure) *HTTPServer {
 	return &HTTPServer{
 		app:           app,
 		serverAddress: cfg.ServerAddress,
 		logger:        logger,
 		telemetry:     telemetry,
+		tenantInfra:   tenantInfra,
 	}
 }
 
@@ -47,7 +52,7 @@ func (s *HTTPServer) Run(l *libCommons.Launcher) error {
 		App:              s.app,
 		Logger:           s.logger,
 		DrainGracePeriod: DefaultDrainGracePeriod,
-		OnShutdown:       nil, // No additional cleanup needed; lib-commons handles telemetry flush
+		OnShutdown:       s.onShutdown,
 	})
 
 	// Use lib-commons server manager for the actual startup and server management.
@@ -56,6 +61,24 @@ func (s *HTTPServer) Run(l *libCommons.Launcher) error {
 	libCommonsServer.NewServerManager(nil, s.telemetry, s.logger).
 		WithHTTPServer(s.app, s.serverAddress).
 		StartWithGracefulShutdown()
+
+	return nil
+}
+
+// onShutdown handles graceful shutdown cleanup including multi-tenant infrastructure.
+// Called by RegisterGracefulShutdown after the drain grace period.
+func (s *HTTPServer) onShutdown(ctx context.Context) error {
+	if s.tenantInfra != nil {
+		s.logger.Log(ctx, libCommonsLog.LevelInfo, "Closing multi-tenant infrastructure")
+
+		if err := s.tenantInfra.Close(ctx); err != nil {
+			s.logger.Log(ctx, libCommonsLog.LevelError, "Failed to close tenant infrastructure",
+				libCommonsLog.Any("error.message", err))
+			return err
+		}
+
+		s.logger.Log(ctx, libCommonsLog.LevelInfo, "Multi-tenant infrastructure closed successfully")
+	}
 
 	return nil
 }

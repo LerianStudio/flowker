@@ -35,21 +35,57 @@ var auditColumns = []string{
 
 // PostgreSQLRepository implements both AuditWriteRepository and AuditReadRepository
 // using pgxpool for PostgreSQL access.
+// Supports both single-tenant (fallback) and multi-tenant (context-based) modes.
 type PostgreSQLRepository struct {
-	pool *pgxpool.Pool
+	fallbackPool *pgxpool.Pool // Fallback for single-tenant mode
 }
 
 // NewPostgreSQLRepository creates a new PostgreSQL audit repository.
+// The provided pool is used as fallback in single-tenant mode.
+// In multi-tenant mode, the pool is resolved from context.
 func NewPostgreSQLRepository(pool *pgxpool.Pool) (*PostgreSQLRepository, error) {
 	if pool == nil {
 		return nil, errors.New("pgxpool cannot be nil")
 	}
 
-	return &PostgreSQLRepository{pool: pool}, nil
+	return &PostgreSQLRepository{fallbackPool: pool}, nil
+}
+
+// getPool returns the tenant-specific pool or fallback.
+// In multi-tenant mode, it extracts the pool from context.
+// In single-tenant mode, it uses the fallback pool.
+//
+// Note: Multi-tenant mode for PostgreSQL requires the tenant middleware to inject
+// a *pgxpool.Pool into context. If GetPGContext returns a dbresolver.DB (sql-based),
+// this method falls back to single-tenant mode since pgx-specific features are used.
+//
+// Current limitation: tmcore.GetPGContext returns dbresolver.DB (sql-based interface),
+// but this repository uses pgxpool.Pool for pgx-specific features (e.g., native type handling).
+// For full multi-tenant PostgreSQL support, consider either:
+// 1. Refactoring to database/sql interface
+// 2. Adding tmcore.GetPGXContext helper for pgx-specific pools
+// Until then, this repository operates in single-tenant mode using the fallback pool.
+func (r *PostgreSQLRepository) getPool(ctx context.Context) (*pgxpool.Pool, error) {
+	// Note: We intentionally don't use tmcore.GetPGContext(ctx) here because:
+	// - It returns dbresolver.DB (database/sql compatible)
+	// - This repository requires pgxpool.Pool for pgx-specific features
+	// - Type conversion is not possible without connection re-establishment
+	// The fallback pool is used for all operations until pgx-specific multi-tenant support is added.
+
+	if r.fallbackPool == nil {
+		return nil, errors.New("postgresql connection not available")
+	}
+
+	return r.fallbackPool, nil
 }
 
 // Insert persists a new audit entry to PostgreSQL.
 func (r *PostgreSQLRepository) Insert(ctx context.Context, entry *model.AuditEntry) error {
+	pool, err := r.getPool(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get pool: %w", err)
+	}
+
 	if entry == nil {
 		return errors.New("audit entry cannot be nil")
 	}
@@ -90,7 +126,7 @@ func (r *PostgreSQLRepository) Insert(ctx context.Context, entry *model.AuditEnt
 		return fmt.Errorf("failed to build insert query: %w", err)
 	}
 
-	_, err = r.pool.Exec(ctx, sqlStr, args...)
+	_, err = pool.Exec(ctx, sqlStr, args...)
 	if err != nil {
 		return fmt.Errorf("failed to insert audit entry: %w", err)
 	}
@@ -100,6 +136,11 @@ func (r *PostgreSQLRepository) Insert(ctx context.Context, entry *model.AuditEnt
 
 // FindByID retrieves an audit entry by its event ID.
 func (r *PostgreSQLRepository) FindByID(ctx context.Context, eventID uuid.UUID) (*model.AuditEntry, error) {
+	pool, err := r.getPool(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pool: %w", err)
+	}
+
 	sqlStr, args, err := psql.
 		Select(auditColumns...).
 		From("audit_events").
@@ -109,7 +150,7 @@ func (r *PostgreSQLRepository) FindByID(ctx context.Context, eventID uuid.UUID) 
 		return nil, fmt.Errorf("failed to build find query: %w", err)
 	}
 
-	row := r.pool.QueryRow(ctx, sqlStr, args...)
+	row := pool.QueryRow(ctx, sqlStr, args...)
 
 	entry, err := scanAuditEntry(row)
 	if err != nil {
@@ -125,6 +166,11 @@ func (r *PostgreSQLRepository) FindByID(ctx context.Context, eventID uuid.UUID) 
 
 // List retrieves audit entries with filtering and cursor-based pagination.
 func (r *PostgreSQLRepository) List(ctx context.Context, filter query.AuditListFilter) ([]*model.AuditEntry, string, bool, error) {
+	pool, err := r.getPool(ctx)
+	if err != nil {
+		return nil, "", false, fmt.Errorf("failed to get pool: %w", err)
+	}
+
 	builder := psql.
 		Select(auditColumns...).
 		From("audit_events")
@@ -187,7 +233,7 @@ func (r *PostgreSQLRepository) List(ctx context.Context, filter query.AuditListF
 		return nil, "", false, fmt.Errorf("failed to build list query: %w", err)
 	}
 
-	rows, err := r.pool.Query(ctx, sqlStr, args...)
+	rows, err := pool.Query(ctx, sqlStr, args...)
 	if err != nil {
 		return nil, "", false, fmt.Errorf("failed to list audit entries: %w", err)
 	}
@@ -223,6 +269,11 @@ func (r *PostgreSQLRepository) List(ctx context.Context, filter query.AuditListF
 
 // VerifyHashChain verifies the hash chain integrity up to the specified event ID.
 func (r *PostgreSQLRepository) VerifyHashChain(ctx context.Context, eventID uuid.UUID) (*model.HashChainVerificationOutput, error) {
+	pool, err := r.getPool(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pool: %w", err)
+	}
+
 	// First, find the target entry to get its id
 	findSQL, findArgs, err := psql.
 		Select("id").
@@ -235,7 +286,7 @@ func (r *PostgreSQLRepository) VerifyHashChain(ctx context.Context, eventID uuid
 
 	var targetID int64
 
-	err = r.pool.QueryRow(ctx, findSQL, findArgs...).Scan(&targetID)
+	err = pool.QueryRow(ctx, findSQL, findArgs...).Scan(&targetID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, constant.ErrAuditEntryNotFound
@@ -255,7 +306,7 @@ func (r *PostgreSQLRepository) VerifyHashChain(ctx context.Context, eventID uuid
 		return nil, fmt.Errorf("failed to build verify query: %w", err)
 	}
 
-	rows, err := r.pool.Query(ctx, verifySQL, verifyArgs...)
+	rows, err := pool.Query(ctx, verifySQL, verifyArgs...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query hash chain: %w", err)
 	}
@@ -269,7 +320,7 @@ func (r *PostgreSQLRepository) VerifyHashChain(ctx context.Context, eventID uuid
 		var (
 			internalID int64
 			hash       string
-			prevHash   string
+			prevHash   *string // Nullable: first audit entry has no previous hash
 		)
 
 		if err := rows.Scan(&internalID, &hash, &prevHash); err != nil {
@@ -278,8 +329,14 @@ func (r *PostgreSQLRepository) VerifyHashChain(ctx context.Context, eventID uuid
 
 		totalChecked++
 
+		// Convert nullable prevHash to string (empty if NULL)
+		prevHashStr := ""
+		if prevHash != nil {
+			prevHashStr = *prevHash
+		}
+
 		// Verify chain: current entry's previousHash should match the last entry's hash
-		if totalChecked > 1 && prevHash != previousHash {
+		if totalChecked > 1 && prevHashStr != previousHash {
 			return &model.HashChainVerificationOutput{
 				IsValid:        false,
 				FirstInvalidID: &internalID,
@@ -319,7 +376,7 @@ func scanAuditEntry(row pgx.Row) (*model.AuditEntry, error) {
 		metadataJSON []byte
 		ts           time.Time
 		hash         string
-		previousHash string
+		previousHash *string // Nullable: first audit entry has no previous hash
 	)
 
 	err := row.Scan(
@@ -332,9 +389,15 @@ func scanAuditEntry(row pgx.Row) (*model.AuditEntry, error) {
 		return nil, err
 	}
 
+	// Convert nullable previousHash to string (empty if NULL)
+	prevHash := ""
+	if previousHash != nil {
+		prevHash = *previousHash
+	}
+
 	return reconstructEntry(internalID, eventID, eventType, action, result,
 		resourceID, resourceType, actorType, actorID, actorIP,
-		contextJSON, metadataJSON, ts, hash, previousHash)
+		contextJSON, metadataJSON, ts, hash, prevHash)
 }
 
 // scanAuditEntryFromRows scans the current row from pgx.Rows into an AuditEntry.
@@ -354,7 +417,7 @@ func scanAuditEntryFromRows(rows pgx.Rows) (*model.AuditEntry, error) {
 		metadataJSON []byte
 		ts           time.Time
 		hash         string
-		previousHash string
+		previousHash *string // Nullable: first audit entry has no previous hash
 	)
 
 	err := rows.Scan(
@@ -367,9 +430,15 @@ func scanAuditEntryFromRows(rows pgx.Rows) (*model.AuditEntry, error) {
 		return nil, err
 	}
 
+	// Convert nullable previousHash to string (empty if NULL)
+	prevHash := ""
+	if previousHash != nil {
+		prevHash = *previousHash
+	}
+
 	return reconstructEntry(internalID, eventID, eventType, action, result,
 		resourceID, resourceType, actorType, actorID, actorIP,
-		contextJSON, metadataJSON, ts, hash, previousHash)
+		contextJSON, metadataJSON, ts, hash, prevHash)
 }
 
 // reconstructEntry builds an AuditEntry from scanned database values.

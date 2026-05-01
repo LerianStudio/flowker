@@ -15,6 +15,7 @@ import (
 	"github.com/LerianStudio/flowker/pkg/model"
 	nethttp "github.com/LerianStudio/flowker/pkg/net/http"
 	"github.com/LerianStudio/flowker/pkg/pagination"
+	tmcore "github.com/LerianStudio/lib-commons/v5/commons/tenant-manager/core"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -27,15 +28,36 @@ const (
 )
 
 // MongoDBRepository implements command.WorkflowRepository using MongoDB.
+// Supports both single-tenant (fallback) and multi-tenant (context-based) modes.
 type MongoDBRepository struct {
-	collection *mongo.Collection
+	fallbackDB *mongo.Database // Fallback for single-tenant mode
 }
 
 // NewMongoDBRepository creates a new MongoDB repository for workflows.
+// The provided database is used as fallback in single-tenant mode.
+// In multi-tenant mode, the database is resolved from context.
 func NewMongoDBRepository(db *mongo.Database) *MongoDBRepository {
 	return &MongoDBRepository{
-		collection: db.Collection(CollectionName),
+		fallbackDB: db,
 	}
+}
+
+// getCollection returns the tenant-specific collection or fallback.
+// In multi-tenant mode, it extracts the database from context.
+// In single-tenant mode, it uses the fallback database.
+func (r *MongoDBRepository) getCollection(ctx context.Context) (*mongo.Collection, error) {
+	// Try to get tenant-specific database from context (multi-tenant mode)
+	db := tmcore.GetMBContext(ctx)
+	if db != nil {
+		return db.Collection(CollectionName), nil
+	}
+
+	// Single-tenant mode: use fallback
+	if r.fallbackDB == nil {
+		return nil, errors.New("mongodb connection not available")
+	}
+
+	return r.fallbackDB.Collection(CollectionName), nil
 }
 
 // Verify MongoDBRepository implements command.WorkflowRepository
@@ -43,9 +65,14 @@ var _ command.WorkflowRepository = (*MongoDBRepository)(nil)
 
 // Create persists a new workflow to MongoDB.
 func (r *MongoDBRepository) Create(ctx context.Context, w *model.Workflow) error {
+	collection, err := r.getCollection(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get collection: %w", err)
+	}
+
 	mongoModel := NewMongoDBModelFromEntity(w)
 
-	_, err := r.collection.InsertOne(ctx, mongoModel)
+	_, err = collection.InsertOne(ctx, mongoModel)
 	if err != nil {
 		// Check for duplicate key error (unique name constraint)
 		if mongo.IsDuplicateKeyError(err) {
@@ -60,11 +87,16 @@ func (r *MongoDBRepository) Create(ctx context.Context, w *model.Workflow) error
 
 // FindByID retrieves a workflow by its ID.
 func (r *MongoDBRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Workflow, error) {
+	collection, err := r.getCollection(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get collection: %w", err)
+	}
+
 	filter := bson.M{"workflowId": id.String()}
 
 	var mongoModel MongoDBModel
 
-	err := r.collection.FindOne(ctx, filter).Decode(&mongoModel)
+	err = collection.FindOne(ctx, filter).Decode(&mongoModel)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, constant.ErrWorkflowNotFound
@@ -78,11 +110,16 @@ func (r *MongoDBRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.
 
 // FindByName retrieves a workflow by its name.
 func (r *MongoDBRepository) FindByName(ctx context.Context, name string) (*model.Workflow, error) {
+	collection, err := r.getCollection(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get collection: %w", err)
+	}
+
 	filter := bson.M{"name": name}
 
 	var mongoModel MongoDBModel
 
-	err := r.collection.FindOne(ctx, filter).Decode(&mongoModel)
+	err = collection.FindOne(ctx, filter).Decode(&mongoModel)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, constant.ErrWorkflowNotFound
@@ -96,6 +133,11 @@ func (r *MongoDBRepository) FindByName(ctx context.Context, name string) (*model
 
 // List retrieves workflows with pagination and optional filtering.
 func (r *MongoDBRepository) List(ctx context.Context, filter command.WorkflowListFilter) (*command.WorkflowListResult, error) {
+	collection, err := r.getCollection(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get collection: %w", err)
+	}
+
 	// Build filter
 	mongoFilter := bson.M{}
 
@@ -105,7 +147,7 @@ func (r *MongoDBRepository) List(ctx context.Context, filter command.WorkflowLis
 
 	// Apply cursor if provided
 	if filter.Cursor != "" {
-		cursor, err := nethttp.DecodeCursor(filter.Cursor)
+		decodedCursor, err := nethttp.DecodeCursor(filter.Cursor)
 		if err != nil {
 			return nil, pkg.ValidationError{
 				Code:    "INVALID_CURSOR",
@@ -117,7 +159,7 @@ func (r *MongoDBRepository) List(ctx context.Context, filter command.WorkflowLis
 		// Build cursor condition based on sort order
 		sortField := mapSortField(filter.SortBy)
 
-		sortValue, err := pagination.ParseSortValue(cursor.SortValue, filter.SortBy)
+		sortValue, err := pagination.ParseSortValue(decodedCursor.SortValue, filter.SortBy)
 		if err != nil {
 			return nil, pkg.ValidationError{
 				Code:    "INVALID_CURSOR",
@@ -129,12 +171,12 @@ func (r *MongoDBRepository) List(ctx context.Context, filter command.WorkflowLis
 		if filter.SortOrder == "ASC" {
 			mongoFilter["$or"] = []bson.M{
 				{sortField: bson.M{"$gt": sortValue}},
-				{sortField: sortValue, "workflowId": bson.M{"$gt": cursor.ID}},
+				{sortField: sortValue, "workflowId": bson.M{"$gt": decodedCursor.ID}},
 			}
 		} else {
 			mongoFilter["$or"] = []bson.M{
 				{sortField: bson.M{"$lt": sortValue}},
-				{sortField: sortValue, "workflowId": bson.M{"$lt": cursor.ID}},
+				{sortField: sortValue, "workflowId": bson.M{"$lt": decodedCursor.ID}},
 			}
 		}
 	}
@@ -161,15 +203,15 @@ func (r *MongoDBRepository) List(ctx context.Context, filter command.WorkflowLis
 		SetSort(sortOpts).
 		SetLimit(int64(limit + 1))
 
-	cursor, err := r.collection.Find(ctx, mongoFilter, findOptions)
+	mongoCursor, err := collection.Find(ctx, mongoFilter, findOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list workflows: %w", err)
 	}
-	defer cursor.Close(ctx)
+	defer mongoCursor.Close(ctx)
 
 	var mongoModels []MongoDBModel
 
-	if err := cursor.All(ctx, &mongoModels); err != nil {
+	if err := mongoCursor.All(ctx, &mongoModels); err != nil {
 		return nil, fmt.Errorf("failed to decode workflows: %w", err)
 	}
 
@@ -218,6 +260,11 @@ func (r *MongoDBRepository) List(ctx context.Context, filter command.WorkflowLis
 // Update persists changes to an existing workflow.
 // expectedStatus is included in the filter to prevent race conditions (atomic check-and-set).
 func (r *MongoDBRepository) Update(ctx context.Context, w *model.Workflow, expectedStatus model.WorkflowStatus) error {
+	collection, err := r.getCollection(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get collection: %w", err)
+	}
+
 	filter := bson.M{"workflowId": w.ID().String()}
 	if expectedStatus != "" {
 		filter["status"] = string(expectedStatus)
@@ -237,7 +284,7 @@ func (r *MongoDBRepository) Update(ctx context.Context, w *model.Workflow, expec
 		},
 	}
 
-	result, err := r.collection.UpdateOne(ctx, filter, update)
+	result, err := collection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		// Check for duplicate key error (unique name constraint)
 		if mongo.IsDuplicateKeyError(err) {
@@ -261,12 +308,17 @@ func (r *MongoDBRepository) Update(ctx context.Context, w *model.Workflow, expec
 // Delete removes a workflow by its ID.
 // expectedStatus is included in the filter to prevent race conditions (atomic check-and-set).
 func (r *MongoDBRepository) Delete(ctx context.Context, id uuid.UUID, expectedStatus model.WorkflowStatus) error {
+	collection, err := r.getCollection(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get collection: %w", err)
+	}
+
 	filter := bson.M{"workflowId": id.String()}
 	if expectedStatus != "" {
 		filter["status"] = string(expectedStatus)
 	}
 
-	result, err := r.collection.DeleteOne(ctx, filter)
+	result, err := collection.DeleteOne(ctx, filter)
 	if err != nil {
 		return fmt.Errorf("failed to delete workflow: %w", err)
 	}
@@ -284,9 +336,14 @@ func (r *MongoDBRepository) Delete(ctx context.Context, id uuid.UUID, expectedSt
 
 // ExistsByName checks if a workflow with the given name exists.
 func (r *MongoDBRepository) ExistsByName(ctx context.Context, name string) (bool, error) {
+	collection, err := r.getCollection(ctx)
+	if err != nil {
+		return false, fmt.Errorf("failed to get collection: %w", err)
+	}
+
 	filter := bson.M{"name": name}
 
-	count, err := r.collection.CountDocuments(ctx, filter, options.Count().SetLimit(1))
+	count, err := collection.CountDocuments(ctx, filter, options.Count().SetLimit(1))
 	if err != nil {
 		return false, fmt.Errorf("failed to check workflow existence: %w", err)
 	}

@@ -32,7 +32,7 @@ func TestService_Struct(t *testing.T) {
 		},
 	}
 
-	httpServer := NewHTTPServer(cfg, app, mockLogger, telemetry)
+	httpServer := NewHTTPServer(cfg, app, mockLogger, telemetry, nil)
 
 	service := &Service{
 		HTTPServer: httpServer,
@@ -60,7 +60,7 @@ func TestService_EmbeddedServers(t *testing.T) {
 		},
 	}
 
-	httpServer := NewHTTPServer(cfg, app, mockLogger, telemetry)
+	httpServer := NewHTTPServer(cfg, app, mockLogger, telemetry, nil)
 
 	service := &Service{
 		HTTPServer: httpServer,
